@@ -52,6 +52,8 @@ class CompleteScanResponse(BaseModel):
     """Complete scan response with all results"""
     scam_score: float = Field(ge=0.0, le=100.0, description="Overall scam score (0-100)")
     risk_level: str = Field(description="Risk categorization: LOW, MEDIUM, HIGH, CRITICAL")
+    labels: List[str] = Field(default_factory=list, description="UI badges/labels for detected risks")
+    recommendations: List[str] = Field(default_factory=list, description="Actionable advice for the user")
     email_verification: Optional[EmailVerificationResult] = None
     url_scan: Optional[URLScanResult] = None
     content_analysis: Optional[ContentAnalysisResult] = None
@@ -61,6 +63,12 @@ class CompleteScanResponse(BaseModel):
             "example": {
                 "scam_score": 78.5,
                 "risk_level": "HIGH",
+                "labels": ["Malicious Link", "Suspicious Sender", "Phishing Content"],
+                "recommendations": [
+                    "Do not click any links in this email",
+                    "Avoid providing personal information",
+                    "Mark this email as spam"
+                ],
                 "email_verification": {
                     "valid": False,
                     "score": 20,
