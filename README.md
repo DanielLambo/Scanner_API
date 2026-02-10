@@ -278,27 +278,82 @@ pip install gunicorn
 gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 ```
 
-## 🤝 Integration with Frontend
+## 🤝 Frontend & Web Extension Integration
 
-This API is designed to be consumed by any frontend application. Example integration:
+This API is optimized for easy integration with frontend applications and browser extensions (Chrome, Firefox, Edge).
+
+### 🚀 Quick Start with SDK
+
+We provide a lightweight TypeScript client in the `frontend/` directory.
+
+1. **Copy types and client**: Copy `frontend/types.ts` and `frontend/client.ts` to your project.
+2. **Usage**:
+
+```typescript
+import { EmailScannerClient } from './client';
+
+const client = new EmailScannerClient('http://localhost:8000', 'your_api_key');
+
+const result = await client.scanEmail({
+  email_address: 'suspicious@example.com',
+  email_text: 'Urgent: Reset your password now!'
+});
+
+console.log(`Risk: ${result.risk_level} (${result.scam_score}/100)`);
+```
+
+### 🏷️ Using Labels & Recommendations
+
+The API provides pre-processed `labels` and `recommendations` specifically for UI display:
+
+- **`labels`**: Short strings (e.g., "Malicious Link", "High Risk Sender") perfect for badges or tags.
+- **`recommendations`**: Human-readable advice for the end-user.
 
 ```javascript
-const scanEmail = async (emailAddress, emailText) => {
-  const response = await fetch('http://localhost:8000/api/scan', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': 'your_api_key'
-    },
-    body: JSON.stringify({
-      email_address: emailAddress,
-      email_text: emailText
-    })
-  });
-  
-  return await response.json();
+// Example UI mapping
+const riskColors = {
+  'LOW': '#4CAF50',      // Green
+  'MEDIUM': '#FFC107',   // Yellow
+  'HIGH': '#FF9800',     // Orange
+  'CRITICAL': '#F44336'  // Red
 };
+
+// Use result.labels.map() to render badges
+// Use result.recommendations.map() to render an advice list
 ```
+
+### 🌐 Web Extension Configuration
+
+When using this API in a web extension:
+
+#### 1. Permissions (`manifest.json`)
+Ensure your API host is allowed in your manifest:
+
+```json
+{
+  "permissions": [
+    "host_permissions": [
+      "http://localhost:8000/*"
+    ]
+  ]
+}
+```
+
+#### 2. CORS
+The API is configured with CORS support. In development, it allows all origins. For production, update `app.py` to include your extension's ID:
+
+```python
+# app.py
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["chrome-extension://your-extension-id"],
+    ...
+)
+```
+
+### 🛠️ Local Development
+
+If you are developing your frontend locally (e.g., React on localhost:3000), the API will work out of the box due to the current CORS settings.
 
 ## 📝 License
 
