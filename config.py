@@ -9,6 +9,9 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
+    # Testing mode (set to True to bypass API key authentication)
+    testing_mode: bool = True  # Set to False in production
+    
     # API Keys
     hunter_api_key: str = "##"
     virustotal_api_key: str = "##"

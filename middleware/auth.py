@@ -21,8 +21,12 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
         API key if valid
         
     Raises:
-        HTTPException: If API key is invalid or missing
+        HTTPException: If API key is invalid or missing (unless in testing mode)
     """
+    # Skip authentication in testing mode
+    if settings.testing_mode:
+        return "testing"
+    
     if not api_key:
         raise HTTPException(
             status_code=401,
@@ -41,3 +45,4 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
         )
     
     return api_key
+
