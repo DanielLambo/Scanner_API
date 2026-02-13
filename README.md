@@ -13,6 +13,18 @@ A production-ready FastAPI backend service for detecting phishing and scam email
 - **CORS Support** - Ready for frontend integration
 - **Auto-generated Docs** - OpenAPI/Swagger documentation
 
+## ⚠️ Deployment Status & Live Demo
+
+**This project is designed as a local-first backend service.**
+
+There is currently **no live public API deployment**. This is intentional:
+1. **Security & Quotas**: This API relies on third-party services (Hunter.io, VirusTotal) which require private API keys with strict rate limits. Hosting a public demo would expose these keys to abuse and depletion of free-tier quotas.
+2. **Local Execution**: The project provides a complete environment for you to run the scanner on your own machine using your own credentials.
+
+> **Note for Frontend Developers**: You **must** run this backend locally on your machine to test or develop any frontend applications. There is no remote base URL to connect to.
+
+All documentation below uses `http://localhost:8000` to reflect the local development environment.
+
 ## 📋 Requirements
 
 - Python 3.8+
@@ -76,7 +88,7 @@ uvicorn app:app --reload
 python app.py
 ```
 
-The API will be available at: `http://localhost:8000`
+The local API server will be available at: `http://localhost:8000`
 
 ## 📚 API Documentation
 
@@ -283,6 +295,8 @@ gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
 This API is optimized for easy integration with frontend applications and browser extensions (Chrome, Firefox, Edge).
 
 ### 🚀 Quick Start with SDK
+
+> **Prerequisite**: Ensure the backend is running locally (`http://localhost:8000`) before starting your frontend.
 
 We provide a lightweight TypeScript client in the `frontend/` directory.
 
