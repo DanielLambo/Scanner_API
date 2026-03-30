@@ -2,9 +2,11 @@
 Email verification service using Hunter.io API
 Validates email addresses and calculates risk scores
 """
+import asyncio
 import requests
 from typing import Dict, Optional
 from models.schemas import EmailVerificationResult
+from services.domain_age import check_domain_age
 from config import settings
 
 
@@ -16,60 +18,60 @@ class EmailVerifier:
         self.api_url = settings.hunter_api_url
         self.timeout = settings.external_api_timeout
     
-    def verify_email(self, email_address: str) -> EmailVerificationResult:
+    async def verify_email(self, email_address: str) -> EmailVerificationResult:
         """
-        Verify email address using Hunter.io API
-        
+        Verify email address using Hunter.io API and check domain age.
+
         Args:
             email_address: Email address to verify
-            
+
         Returns:
-            EmailVerificationResult with verification details
+            EmailVerificationResult with verification details and domain age risk
         """
+        domain_age = await check_domain_age(email_address=email_address)
+
         if self.api_key == "##":
-            # Return default result if API key not configured
             return EmailVerificationResult(
                 valid=True,
                 score=50.0,
-                risk_score=50.0,
-                details={"error": "Hunter.io API key not configured"}
+                risk_score=max(50.0, domain_age["risk_score"]),
+                domain_age_days=domain_age.get("youngest_age_days"),
+                domain_age_risk=domain_age["risk_score"],
+                details={"error": "Hunter.io API key not configured"},
             )
-        
+
         try:
-            params = {
-                "email": email_address,
-                "api_key": self.api_key
-            }
-            
-            response = requests.get(
-                self.api_url,
-                params=params,
-                timeout=self.timeout
+            params = {"email": email_address, "api_key": self.api_key}
+            response = await asyncio.to_thread(
+                requests.get, self.api_url, params=params, timeout=self.timeout
             )
             response.raise_for_status()
             data = response.json().get("data", {})
-            
-            # Extract verification details
-            result = EmailVerificationResult(
+
+            base_risk = self._calculate_risk_score(data)
+            final_risk = max(base_risk, domain_age["risk_score"])
+
+            return EmailVerificationResult(
                 valid=data.get("result") == "deliverable",
                 score=data.get("score", 0),
                 disposable=data.get("disposable", False),
                 webmail=data.get("webmail", False),
                 accept_all=data.get("accept_all", False),
                 gibberish=data.get("gibberish", False),
-                risk_score=self._calculate_risk_score(data),
-                details=data
+                risk_score=final_risk,
+                domain_age_days=domain_age.get("youngest_age_days"),
+                domain_age_risk=domain_age["risk_score"],
+                details=data,
             )
-            
-            return result
-            
+
         except requests.exceptions.RequestException as e:
-            # Return error result
             return EmailVerificationResult(
                 valid=False,
                 score=0,
                 risk_score=100.0,
-                details={"error": str(e)}
+                domain_age_days=domain_age.get("youngest_age_days"),
+                domain_age_risk=domain_age["risk_score"],
+                details={"error": str(e)},
             )
     
     def _calculate_risk_score(self, data: Dict) -> float:

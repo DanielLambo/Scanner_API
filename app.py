@@ -5,6 +5,7 @@ Main application with all endpoints
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+import asyncio
 
 from models.schemas import (
     EmailScanRequest,
@@ -18,6 +19,9 @@ from services.email_verifier import email_verifier
 from services.url_scanner import url_scanner
 from services.content_analyzer import content_analyzer
 from services.score_calculator import score_calculator
+from services.openphish import openphish
+from services.domain_age import check_domain_age, _redis_available
+from services.dnsbl import check_domains as dnsbl_check_domains
 from middleware.auth import verify_api_key
 from config import settings
 
@@ -39,6 +43,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize background services on startup."""
+    await openphish.initialize()
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -69,21 +79,46 @@ async def complete_scan(
     email_result = None
     url_result = None
     content_result = None
-    
-    # Run email verification if email address provided
-    if request.email_address:
-        email_result = email_verifier.verify_email(request.email_address)
-    
-    # Run URL scanning if email text provided
-    if request.email_text:
-        url_result = url_scanner.scan_urls(request.email_text)
+    dnsbl_result = None
+
+    # Helper to extract domains for DNSBL from email + urls
+    def _domains_for_dnsbl(email_address, urls):
+        from urllib.parse import urlparse
+        domains = set()
+        if email_address:
+            domains.add(email_address.split("@")[-1].lower())
+        for u in (urls or []):
+            host = urlparse(u).hostname
+            if host:
+                domains.add(host.lower())
+        return list(domains)
+
+    # Run email verification (now async) and URL scan concurrently when both present
+    if request.email_address and request.email_text:
+        url_result, email_result = await asyncio.gather(
+            url_scanner.scan_urls(request.email_text),
+            email_verifier.verify_email(request.email_address),
+        )
         content_result = content_analyzer.analyze_content(request.email_text)
+        domains = _domains_for_dnsbl(request.email_address, url_result.urls_found)
+        dnsbl_result = await dnsbl_check_domains(domains)
+    elif request.email_address:
+        email_result, dnsbl_result = await asyncio.gather(
+            email_verifier.verify_email(request.email_address),
+            dnsbl_check_domains(_domains_for_dnsbl(request.email_address, None)),
+        )
+    elif request.email_text:
+        url_result = await url_scanner.scan_urls(request.email_text)
+        content_result = content_analyzer.analyze_content(request.email_text)
+        domains = _domains_for_dnsbl(None, url_result.urls_found)
+        dnsbl_result = await dnsbl_check_domains(domains)
     
     # Calculate combined score
     response = score_calculator.calculate_score(
         email_result=email_result,
         url_result=url_result,
-        content_result=content_result
+        content_result=content_result,
+        dnsbl_result=dnsbl_result,
     )
     
     return response
@@ -104,7 +139,7 @@ async def scan_email_address(
             detail="email_address is required for this endpoint"
         )
     
-    return email_verifier.verify_email(request.email_address)
+    return await email_verifier.verify_email(request.email_address)
 
 
 @app.post("/api/scan/urls", response_model=URLScanResult)
@@ -122,7 +157,7 @@ async def scan_urls(
             detail="email_text is required for this endpoint"
         )
     
-    return url_scanner.scan_urls(request.email_text)
+    return await url_scanner.scan_urls(request.email_text)
 
 
 @app.post("/api/scan/content", response_model=ContentAnalysisResult)
@@ -147,6 +182,29 @@ async def scan_content(
         )
     
     return content_analyzer.analyze_content(request.email_text)
+
+
+@app.get("/api/status/openphish")
+async def openphish_status():
+    """
+    OpenPhish feed status
+    Returns current feed size, last update time, and readiness
+    """
+    return {
+        "status": openphish.status,
+        "url_count": openphish.url_count,
+        "last_updated": openphish.last_updated,
+        "source": "openphish",
+    }
+
+
+@app.get("/api/status/whois")
+async def whois_status():
+    """WHOIS service status — no auth required."""
+    return {
+        "status": "ok",
+        "cache": "redis" if _redis_available else "none",
+    }
 
 
 if __name__ == "__main__":

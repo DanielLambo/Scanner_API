@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     hunter_api_key: str = "##"
     virustotal_api_key: str = "##"
     api_key: str = "##"
+    google_safe_browsing_key: str = "##"
     
     # Scoring weights (should sum to 1.0)
     scoring_weights_email: float = 0.3
@@ -35,7 +36,7 @@ class Settings(BaseSettings):
     
     # ML Model paths
     model_path: str = "ml/models/classifier.pkl"
-    vectorizer_path: str = "ml/models/vectorizer.pkl"
+    encoder_path: str = "ml/models/encoder.pkl"
     
     class Config:
         env_file = ".env"

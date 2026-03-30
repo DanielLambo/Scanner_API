@@ -28,16 +28,20 @@ class EmailVerificationResult(BaseModel):
     accept_all: bool = Field(False, description="Server accepts all emails")
     gibberish: bool = Field(False, description="Email appears gibberish")
     risk_score: float = Field(0.0, ge=0.0, le=100.0, description="Calculated risk score")
+    domain_age_days: Optional[int] = None
+    domain_age_risk: float = 0.0
     details: Optional[Dict] = Field(None, description="Additional details from Hunter.io")
 
 
 class URLScanResult(BaseModel):
-    """Result from VirusTotal URL scanning"""
+    """Result from VirusTotal + Google Safe Browsing URL scanning"""
     urls_found: List[str] = Field(default_factory=list, description="URLs extracted from email")
     malicious_count: int = Field(0, description="Number of malicious URLs detected")
     suspicious_count: int = Field(0, description="Number of suspicious URLs detected")
     risk_score: float = Field(0.0, ge=0.0, le=100.0, description="Calculated risk score")
     details: Optional[List[Dict]] = Field(None, description="Detailed scan results per URL")
+    gsb_flagged_count: int = Field(0, description="Number of URLs flagged by Google Safe Browsing")
+    gsb_details: Optional[List[str]] = Field(None, description="URLs flagged by Google Safe Browsing")
 
 
 class ContentAnalysisResult(BaseModel):
@@ -57,6 +61,7 @@ class CompleteScanResponse(BaseModel):
     email_verification: Optional[EmailVerificationResult] = None
     url_scan: Optional[URLScanResult] = None
     content_analysis: Optional[ContentAnalysisResult] = None
+    dnsbl_result: Optional[dict] = None
     
     class Config:
         json_schema_extra = {

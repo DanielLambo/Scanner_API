@@ -24,7 +24,8 @@ class ScoreCalculator:
         self,
         email_result: Optional[EmailVerificationResult] = None,
         url_result: Optional[URLScanResult] = None,
-        content_result: Optional[ContentAnalysisResult] = None
+        content_result: Optional[ContentAnalysisResult] = None,
+        dnsbl_result: Optional[dict] = None,
     ) -> CompleteScanResponse:
         """
         Calculate unified scam score from all results
@@ -60,13 +61,17 @@ class ScoreCalculator:
             scam_score = total_score / total_weight
         else:
             scam_score = 0.0
-        
+
+        # Hard-floor: if any domain is blocklist-flagged, scam_score >= 70
+        if dnsbl_result and dnsbl_result.get("risk_score", 0) == 100.0:
+            scam_score = max(scam_score, 70.0)
+
         # Determine risk level
         risk_level = self._get_risk_level(scam_score)
         
         # Generate labels and recommendations
-        labels = self._generate_labels(email_result, url_result, content_result)
-        recommendations = self._generate_recommendations(email_result, url_result, content_result, risk_level)
+        labels = self._generate_labels(email_result, url_result, content_result, dnsbl_result)
+        recommendations = self._generate_recommendations(email_result, url_result, content_result, risk_level, dnsbl_result)
 
         return CompleteScanResponse(
             scam_score=round(scam_score, 2),
@@ -75,14 +80,16 @@ class ScoreCalculator:
             recommendations=recommendations,
             email_verification=email_result,
             url_scan=url_result,
-            content_analysis=content_result
+            content_analysis=content_result,
+            dnsbl_result=dnsbl_result,
         )
 
     def _generate_labels(
         self,
         email_result: Optional[EmailVerificationResult],
         url_result: Optional[URLScanResult],
-        content_result: Optional[ContentAnalysisResult]
+        content_result: Optional[ContentAnalysisResult],
+        dnsbl_result: Optional[dict] = None,
     ) -> list[str]:
         """Generate UI labels based on scan results"""
         labels = []
@@ -107,6 +114,9 @@ class ScoreCalculator:
             elif content_result.risk_score > 60:
                 labels.append("Suspicious Content")
 
+        if dnsbl_result and dnsbl_result.get("flagged_domains"):
+            labels.append("Domain Blocklisted")
+
         return labels
 
     def _generate_recommendations(
@@ -114,7 +124,8 @@ class ScoreCalculator:
         email_result: Optional[EmailVerificationResult],
         url_result: Optional[URLScanResult],
         content_result: Optional[ContentAnalysisResult],
-        risk_level: str
+        risk_level: str,
+        dnsbl_result: Optional[dict] = None,
     ) -> list[str]:
         """Generate actionable advice for the user"""
         recs = []
@@ -131,6 +142,9 @@ class ScoreCalculator:
 
         if content_result and content_result.is_phishing:
             recs.append("The message uses language typical of phishing scams (e.g., creating a sense of urgency).")
+
+        if dnsbl_result and dnsbl_result.get("flagged_domains"):
+            recs.append("The sender domain appears on spam/phishing blocklists.")
 
         if not recs:
             recs.append("This email appears to be safe, but always remain cautious with unexpected messages.")
