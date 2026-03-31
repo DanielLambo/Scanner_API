@@ -1,6 +1,6 @@
 """
 ML Model Training Script
-Trains a Logistic Regression classifier on Sentence-BERT embeddings
+Trains a Logistic Regression classifier on TF-IDF features
 for phishing email detection.
 
 Usage:
@@ -14,7 +14,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from imblearn.under_sampling import RandomUnderSampler
-from sentence_transformers import SentenceTransformer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -55,35 +55,33 @@ def train_model(dataset_path: str = "dataset/phishing_email.csv"):
     )
     print(f"\nTrain: {len(X_train)}  Test: {len(X_test)}")
 
-    # Encode with Sentence-BERT
-    print("\nLoading SentenceTransformer (all-MiniLM-L6-v2)...")
-    encoder = SentenceTransformer("all-MiniLM-L6-v2")
+    # Vectorize with TF-IDF
+    print("\nFitting TfidfVectorizer (max_features=10000, ngram_range=(1,2))...")
+    vectorizer = TfidfVectorizer(max_features=10000, ngram_range=(1, 2))
+    X_train_tfidf = vectorizer.fit_transform(X_train)
 
-    print("Encoding training set...")
-    X_train_emb = encoder.encode(X_train, batch_size=64, show_progress_bar=True)
-
-    print("Encoding test set...")
-    X_test_emb = encoder.encode(X_test, batch_size=64, show_progress_bar=True)
+    print("Transforming test set...")
+    X_test_tfidf = vectorizer.transform(X_test)
 
     # Train Logistic Regression
     print("\nTraining LogisticRegression...")
     clf = LogisticRegression(max_iter=1000, C=1.0, random_state=42)
-    clf.fit(X_train_emb, y_train)
+    clf.fit(X_train_tfidf, y_train)
 
     # Evaluate
-    y_pred = clf.predict(X_test_emb)
+    y_pred = clf.predict(X_test_tfidf)
     print("\nClassification Report (0=safe, 1=phishing):")
     print(classification_report(y_test, y_pred, target_names=["safe", "phishing"]))
 
     # Save
     os.makedirs("ml/models", exist_ok=True)
+    with open("ml/models/vectorizer.pkl", "wb") as f:
+        pickle.dump(vectorizer, f)
     with open("ml/models/classifier.pkl", "wb") as f:
         pickle.dump(clf, f)
-    with open("ml/models/encoder.pkl", "wb") as f:
-        pickle.dump(encoder, f)
 
+    print("Saved ml/models/vectorizer.pkl")
     print("Saved ml/models/classifier.pkl")
-    print("Saved ml/models/encoder.pkl")
 
 
 if __name__ == "__main__":

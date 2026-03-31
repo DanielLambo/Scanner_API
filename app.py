@@ -13,6 +13,7 @@ from models.schemas import (
     EmailVerificationResult,
     URLScanResult,
     ContentAnalysisResult,
+    HeaderAnalysisResult,
     HealthResponse
 )
 from services.email_verifier import email_verifier
@@ -22,6 +23,8 @@ from services.score_calculator import score_calculator
 from services.openphish import openphish
 from services.domain_age import check_domain_age, _redis_available
 from services.dnsbl import check_domains as dnsbl_check_domains
+from services.url_scanner import url_scanner, _url_cache
+from services.header_analyzer import analyze_headers
 from middleware.auth import verify_api_key
 from config import settings
 
@@ -80,6 +83,7 @@ async def complete_scan(
     url_result = None
     content_result = None
     dnsbl_result = None
+    header_result = None
 
     # Helper to extract domains for DNSBL from email + urls
     def _domains_for_dnsbl(email_address, urls):
@@ -93,34 +97,60 @@ async def complete_scan(
                 domains.add(host.lower())
         return list(domains)
 
+    # Wrap synchronous analyze_headers so it can join asyncio.gather
+    async def _run_header_analysis(raw: str) -> HeaderAnalysisResult:
+        result = analyze_headers(raw)
+        return HeaderAnalysisResult(**result)
+
     # Run email verification (now async) and URL scan concurrently when both present
     if request.email_address and request.email_text:
-        url_result, email_result = await asyncio.gather(
+        tasks = [
             url_scanner.scan_urls(request.email_text),
             email_verifier.verify_email(request.email_address),
-        )
+        ]
+        if request.email_headers:
+            tasks.append(_run_header_analysis(request.email_headers))
+        gathered = await asyncio.gather(*tasks)
+        url_result, email_result = gathered[0], gathered[1]
+        if request.email_headers:
+            header_result = gathered[2]
         content_result = content_analyzer.analyze_content(request.email_text)
         domains = _domains_for_dnsbl(request.email_address, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
     elif request.email_address:
-        email_result, dnsbl_result = await asyncio.gather(
+        tasks = [
             email_verifier.verify_email(request.email_address),
             dnsbl_check_domains(_domains_for_dnsbl(request.email_address, None)),
-        )
+        ]
+        if request.email_headers:
+            tasks.append(_run_header_analysis(request.email_headers))
+        gathered = await asyncio.gather(*tasks)
+        email_result, dnsbl_result = gathered[0], gathered[1]
+        if request.email_headers:
+            header_result = gathered[2]
     elif request.email_text:
-        url_result = await url_scanner.scan_urls(request.email_text)
+        tasks = [url_scanner.scan_urls(request.email_text)]
+        if request.email_headers:
+            tasks.append(_run_header_analysis(request.email_headers))
+        gathered = await asyncio.gather(*tasks)
+        url_result = gathered[0]
+        if request.email_headers:
+            header_result = gathered[1]
         content_result = content_analyzer.analyze_content(request.email_text)
         domains = _domains_for_dnsbl(None, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
-    
+    elif request.email_headers:
+        header_result = await _run_header_analysis(request.email_headers)
+
     # Calculate combined score
     response = score_calculator.calculate_score(
         email_result=email_result,
         url_result=url_result,
         content_result=content_result,
         dnsbl_result=dnsbl_result,
+        header_analysis=header_result,
     )
-    
+
     return response
 
 
@@ -204,6 +234,35 @@ async def whois_status():
     return {
         "status": "ok",
         "cache": "redis" if _redis_available else "none",
+    }
+
+
+@app.get("/api/status/url-cache")
+async def url_cache_status():
+    """URL scan cache status — shows hit count and Redis availability."""
+    return {
+        "status": "ok",
+        "cache": "redis" if _url_cache.available else "none",
+        "cache_hits": _url_cache.hits,
+    }
+
+
+@app.get("/api/status/canonicalizer")
+async def canonicalizer_status():
+    """Canonicalizer service status."""
+    return {
+        "status": "ok",
+        "redirect_following": True,
+        "max_hops": 5,
+    }
+
+
+@app.get("/api/status/headers")
+async def headers_status():
+    """Header analysis service status."""
+    return {
+        "status": "ok",
+        "features": ["spf", "dkim", "dmarc", "reply_to", "hop_analysis"],
     }
 
 

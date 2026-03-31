@@ -49,7 +49,7 @@ def _extract_domain(value: str) -> Optional[str]:
 def _whois_lookup(domain: str) -> dict:
     """Blocking WHOIS lookup — call via asyncio.to_thread."""
     try:
-        w = whois.whois(domain, timeout=5)
+        w = whois.whois(domain)
         creation = w.creation_date
         if creation is None:
             return {"domain": domain, "age_days": None, "risk_score": 25.0, "error": "no creation date"}

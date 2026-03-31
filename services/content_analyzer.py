@@ -1,29 +1,22 @@
 """
-Content analysis service using Sentence-BERT + Logistic Regression.
+Content analysis service using TF-IDF + Logistic Regression.
 Classifies email content as phishing or safe.
 """
+import os
+
 from models.schemas import ContentAnalysisResult
 from ml.model_loader import model_loader
 from config import settings
 
 
 class ContentAnalyzer:
-    """Sentence-BERT based phishing content classifier"""
-
-    def __init__(self):
-        self.model_path = settings.model_path
-        self.encoder_path = settings.encoder_path
-        self.model = None
-        self.encoder = None
-        self._load_model()
-
-    def _load_model(self):
-        self.model, self.encoder = model_loader.load_model(
-            self.model_path, self.encoder_path
-        )
+    """TF-IDF based phishing content classifier"""
 
     def is_model_available(self) -> bool:
-        return self.model is not None and self.encoder is not None
+        return (
+            os.path.exists(settings.model_path)
+            and os.path.exists(settings.vectorizer_path)
+        )
 
     def analyze_content(self, email_text: str) -> ContentAnalysisResult:
         """
@@ -40,10 +33,21 @@ class ContentAnalyzer:
                 is_phishing=False,
             )
 
+        model, vectorizer = model_loader.load_model(
+            settings.model_path, settings.vectorizer_path
+        )
+        if model is None or vectorizer is None:
+            return ContentAnalysisResult(
+                prediction="Model Not Available",
+                confidence=0.0,
+                risk_score=0.0,
+                is_phishing=False,
+            )
+
         try:
-            # 384-dim embedding → predict_proba
-            embedding = self.encoder.encode([email_text])
-            proba = self.model.predict_proba(embedding)[0]
+            # TF-IDF transform → predict_proba
+            features = vectorizer.transform([email_text])
+            proba = model.predict_proba(features)[0]
 
             # index 1 = phishing class
             phishing_probability = float(proba[1])

@@ -1,18 +1,18 @@
 """
 ML model loader with singleton pattern.
-Loads Sentence-BERT encoder + Logistic Regression classifier.
+Loads TF-IDF vectorizer and Logistic Regression classifier from pickle files.
 """
-import pickle
 import os
+import pickle
 from typing import Optional, Tuple
 
 
 class ModelLoader:
-    """Singleton loader for classifier.pkl and encoder.pkl"""
+    """Singleton loader for classifier.pkl and vectorizer.pkl"""
 
     _instance = None
     _model = None
-    _encoder = None
+    _vectorizer = None
     _loaded = False
 
     def __new__(cls):
@@ -21,26 +21,34 @@ class ModelLoader:
         return cls._instance
 
     def load_model(
-        self, model_path: str, encoder_path: str
+        self, model_path: str, vectorizer_path: str
     ) -> Tuple[Optional[object], Optional[object]]:
         """
-        Load classifier and encoder from disk.
+        Load classifier and vectorizer from pickle files.
 
         Returns:
-            (classifier, encoder) or (None, None) if files are missing
+            (classifier, vectorizer) or (None, None) if files are missing
         """
         if self._loaded:
-            return self._model, self._encoder
+            return self._model, self._vectorizer
 
         try:
-            if os.path.exists(model_path) and os.path.exists(encoder_path):
-                with open(model_path, "rb") as f:
-                    self._model = pickle.load(f)
-                with open(encoder_path, "rb") as f:
-                    self._encoder = pickle.load(f)
-                self._loaded = True
-                return self._model, self._encoder
-            return None, None
+            if not os.path.exists(model_path):
+                print(f"Model not found: {model_path}")
+                return None, None
+            if not os.path.exists(vectorizer_path):
+                print(f"Vectorizer not found: {vectorizer_path}")
+                return None, None
+
+            with open(model_path, "rb") as f:
+                self._model = pickle.load(f)
+
+            with open(vectorizer_path, "rb") as f:
+                self._vectorizer = pickle.load(f)
+
+            self._loaded = True
+            return self._model, self._vectorizer
+
         except Exception as e:
             print(f"Error loading model: {e}")
             return None, None

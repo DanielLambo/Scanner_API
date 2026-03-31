@@ -7,6 +7,7 @@ import requests
 from typing import Dict, Optional
 from models.schemas import EmailVerificationResult
 from services.domain_age import check_domain_age
+from services.homoglyph import check_domain
 from config import settings
 
 
@@ -20,7 +21,8 @@ class EmailVerifier:
     
     async def verify_email(self, email_address: str) -> EmailVerificationResult:
         """
-        Verify email address using Hunter.io API and check domain age.
+        Verify email address using Hunter.io API, check domain age, and
+        run homoglyph detection on the sender domain.
 
         Args:
             email_address: Email address to verify
@@ -30,14 +32,26 @@ class EmailVerifier:
         """
         domain_age = await check_domain_age(email_address=email_address)
 
+        # Homoglyph detection on sender domain
+        sender_domain = email_address.split("@")[-1] if "@" in email_address else email_address
+        homoglyph_result = check_domain(sender_domain)
+        is_homoglyph = homoglyph_result.get("is_homoglyph", False)
+
         if self.api_key == "##":
+            base_risk = max(50.0, domain_age["risk_score"])
+            if is_homoglyph:
+                base_risk = min(base_risk + 95.0, 100.0)
             return EmailVerificationResult(
                 valid=True,
                 score=50.0,
-                risk_score=max(50.0, domain_age["risk_score"]),
+                risk_score=base_risk,
                 domain_age_days=domain_age.get("youngest_age_days"),
                 domain_age_risk=domain_age["risk_score"],
-                details={"error": "Hunter.io API key not configured"},
+                homoglyph_detected=is_homoglyph,
+                details={
+                    "error": "Hunter.io API key not configured",
+                    "homoglyph_result": homoglyph_result,
+                },
             )
 
         try:
@@ -50,6 +64,11 @@ class EmailVerifier:
 
             base_risk = self._calculate_risk_score(data)
             final_risk = max(base_risk, domain_age["risk_score"])
+            if is_homoglyph:
+                final_risk = min(final_risk + 95.0, 100.0)
+
+            details = dict(data)
+            details["homoglyph_result"] = homoglyph_result
 
             return EmailVerificationResult(
                 valid=data.get("result") == "deliverable",
@@ -61,17 +80,22 @@ class EmailVerifier:
                 risk_score=final_risk,
                 domain_age_days=domain_age.get("youngest_age_days"),
                 domain_age_risk=domain_age["risk_score"],
-                details=data,
+                homoglyph_detected=is_homoglyph,
+                details=details,
             )
 
         except requests.exceptions.RequestException as e:
+            base_risk = 100.0
+            if is_homoglyph:
+                base_risk = min(base_risk + 95.0, 100.0)
             return EmailVerificationResult(
                 valid=False,
                 score=0,
-                risk_score=100.0,
+                risk_score=base_risk,
                 domain_age_days=domain_age.get("youngest_age_days"),
                 domain_age_risk=domain_age["risk_score"],
-                details={"error": str(e)},
+                homoglyph_detected=is_homoglyph,
+                details={"error": str(e), "homoglyph_result": homoglyph_result},
             )
     
     def _calculate_risk_score(self, data: Dict) -> float:

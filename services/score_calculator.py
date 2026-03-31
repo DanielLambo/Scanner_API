@@ -7,7 +7,8 @@ from models.schemas import (
     CompleteScanResponse,
     EmailVerificationResult,
     URLScanResult,
-    ContentAnalysisResult
+    ContentAnalysisResult,
+    HeaderAnalysisResult,
 )
 from config import settings
 
@@ -26,36 +27,56 @@ class ScoreCalculator:
         url_result: Optional[URLScanResult] = None,
         content_result: Optional[ContentAnalysisResult] = None,
         dnsbl_result: Optional[dict] = None,
+        header_analysis: Optional[HeaderAnalysisResult] = None,
     ) -> CompleteScanResponse:
         """
         Calculate unified scam score from all results
-        
+
         Args:
             email_result: Email verification result
             url_result: URL scanning result
             content_result: Content analysis result
-            
+            dnsbl_result: DNSBL blocklist result
+            header_analysis: Raw header analysis result
+
         Returns:
             CompleteScanResponse with overall score and risk level
         """
         total_score = 0.0
         total_weight = 0.0
-        
+
+        # Choose weight set depending on whether headers are present
+        if header_analysis is not None:
+            w_email   = 0.20
+            w_url     = 0.30
+            w_content = 0.25
+            w_headers = 0.25
+        else:
+            w_email   = self.weight_email    # 0.30
+            w_url     = self.weight_url      # 0.40
+            w_content = self.weight_content  # 0.30
+            w_headers = 0.0
+
         # Add email verification score
         if email_result is not None:
-            total_score += email_result.risk_score * self.weight_email
-            total_weight += self.weight_email
-        
+            total_score += email_result.risk_score * w_email
+            total_weight += w_email
+
         # Add URL scanning score
         if url_result is not None:
-            total_score += url_result.risk_score * self.weight_url
-            total_weight += self.weight_url
-        
+            total_score += url_result.risk_score * w_url
+            total_weight += w_url
+
         # Add content analysis score
         if content_result is not None:
-            total_score += content_result.risk_score * self.weight_content
-            total_weight += self.weight_content
-        
+            total_score += content_result.risk_score * w_content
+            total_weight += w_content
+
+        # Add header analysis score
+        if header_analysis is not None:
+            total_score += header_analysis.risk_score * w_headers
+            total_weight += w_headers
+
         # Calculate weighted average
         if total_weight > 0:
             scam_score = total_score / total_weight
@@ -68,10 +89,12 @@ class ScoreCalculator:
 
         # Determine risk level
         risk_level = self._get_risk_level(scam_score)
-        
+
         # Generate labels and recommendations
-        labels = self._generate_labels(email_result, url_result, content_result, dnsbl_result)
-        recommendations = self._generate_recommendations(email_result, url_result, content_result, risk_level, dnsbl_result)
+        labels = self._generate_labels(email_result, url_result, content_result, dnsbl_result, header_analysis)
+        recommendations = self._generate_recommendations(
+            email_result, url_result, content_result, risk_level, dnsbl_result, header_analysis
+        )
 
         return CompleteScanResponse(
             scam_score=round(scam_score, 2),
@@ -82,6 +105,7 @@ class ScoreCalculator:
             url_scan=url_result,
             content_analysis=content_result,
             dnsbl_result=dnsbl_result,
+            header_analysis=header_analysis,
         )
 
     def _generate_labels(
@@ -90,6 +114,7 @@ class ScoreCalculator:
         url_result: Optional[URLScanResult],
         content_result: Optional[ContentAnalysisResult],
         dnsbl_result: Optional[dict] = None,
+        header_analysis: Optional[HeaderAnalysisResult] = None,
     ) -> list[str]:
         """Generate UI labels based on scan results"""
         labels = []
@@ -117,6 +142,11 @@ class ScoreCalculator:
         if dnsbl_result and dnsbl_result.get("flagged_domains"):
             labels.append("Domain Blocklisted")
 
+        if header_analysis:
+            for flag in header_analysis.flags:
+                if flag not in labels:
+                    labels.append(flag)
+
         return labels
 
     def _generate_recommendations(
@@ -126,6 +156,7 @@ class ScoreCalculator:
         content_result: Optional[ContentAnalysisResult],
         risk_level: str,
         dnsbl_result: Optional[dict] = None,
+        header_analysis: Optional[HeaderAnalysisResult] = None,
     ) -> list[str]:
         """Generate actionable advice for the user"""
         recs = []
@@ -145,6 +176,22 @@ class ScoreCalculator:
 
         if dnsbl_result and dnsbl_result.get("flagged_domains"):
             recs.append("The sender domain appears on spam/phishing blocklists.")
+
+        if header_analysis:
+            flags = header_analysis.flags
+            if "DMARC_FAIL" in flags:
+                recs.append(
+                    "This email failed DMARC authentication — the sender domain is likely spoofed"
+                )
+            if "REPLY_TO_MISMATCH" in flags:
+                recs.append(
+                    "Reply-To address differs from sender — replies will go to a different domain"
+                )
+            if "DISPLAY_NAME_SPOOF" in flags:
+                brand = header_analysis.spoofed_brand or "a known brand"
+                recs.append(
+                    f"Display name impersonates {brand} but was not sent from their domain"
+                )
 
         if not recs:
             recs.append("This email appears to be safe, but always remain cautious with unexpected messages.")
