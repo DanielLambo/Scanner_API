@@ -1,6 +1,9 @@
 """
 Download trained model files from HuggingFace Hub if not present locally.
 Called during app startup so Render deployments get models automatically.
+
+By default only downloads encoder_name.txt + classifier_lr.pkl (low memory).
+Set FULL_ENSEMBLE=true to download all 5 files.
 """
 import os
 
@@ -8,9 +11,13 @@ from huggingface_hub import hf_hub_download
 
 HF_REPO = "daniellambo7/scanner-api-models"
 MODEL_DIR = "ml/models"
-FILES = [
+
+CORE_FILES = [
     "encoder_name.txt",
     "classifier_lr.pkl",
+]
+
+EXTRA_FILES = [
     "classifier_xgb.pkl",
     "classifier_lgbm.pkl",
     "shap_explainer.pkl",
@@ -18,12 +25,16 @@ FILES = [
 
 
 def download_models_if_missing():
+    full_ensemble = os.environ.get("FULL_ENSEMBLE", "false").lower() == "true"
+    files = CORE_FILES + EXTRA_FILES if full_ensemble else CORE_FILES
+
     os.makedirs(MODEL_DIR, exist_ok=True)
-    missing = [f for f in FILES if not os.path.exists(f"{MODEL_DIR}/{f}")]
+    missing = [f for f in files if not os.path.exists(f"{MODEL_DIR}/{f}")]
     if not missing:
         print("All models present, skipping download")
         return
-    print(f"Downloading {len(missing)} model files from HuggingFace...")
+    mode = "full ensemble" if full_ensemble else "LR only (low memory)"
+    print(f"Downloading {len(missing)} model files from HuggingFace ({mode})...")
     for filename in missing:
         print(f"  Downloading {filename}...")
         hf_hub_download(

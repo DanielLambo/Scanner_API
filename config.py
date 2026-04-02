@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     classifier_lgbm_path: str = "ml/models/classifier_lgbm.pkl"
     shap_explainer_path: str = "ml/models/shap_explainer.pkl"
 
+    # If true, load all 3 classifiers (LR+XGB+LGBM). If false, LR only (~50MB).
+    full_ensemble: bool = False
+
     # Database
     database_url: str = "sqlite+aiosqlite:///./scanner_feedback.db"
 

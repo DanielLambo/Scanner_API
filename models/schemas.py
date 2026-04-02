@@ -58,6 +58,7 @@ class ContentAnalysisResult(BaseModel):
     ensemble_disagreement: float = Field(0.0, description="Max spread in phishing probability across models")
     models_agree: bool = Field(True, description="True if all models agree (disagreement < 0.3)")
     explanation: Optional[List[dict]] = Field(None, description="Top SHAP features driving the prediction")
+    single_model_mode: bool = Field(False, description="True if running LR only (low memory mode)")
 
 
 class HeaderAnalysisResult(BaseModel):

@@ -196,8 +196,9 @@ class ContentAnalyzer:
             clf_lr_path=settings.classifier_lr_path,
             clf_xgb_path=settings.classifier_xgb_path,
             clf_lgbm_path=settings.classifier_lgbm_path,
+            full_ensemble=settings.full_ensemble,
         )
-        if os.path.exists(settings.shap_explainer_path):
+        if settings.full_ensemble and os.path.exists(settings.shap_explainer_path):
             try:
                 with open(settings.shap_explainer_path, "rb") as f:
                     self._shap_explainer = pickle.load(f)
@@ -260,15 +261,19 @@ class ContentAnalyzer:
             individual = model_loader.individual_probas(embedding)
             phishing_probs = [float(p[0, 1]) for p in individual]
 
-            # Soft-vote ensemble
+            # Soft-vote ensemble (or single model)
             avg_proba = model_loader.ensemble_predict_proba(embedding)
             phishing_probability = float(avg_proba[0, 1])
             risk_score = phishing_probability * 100.0
             is_phishing = phishing_probability >= 0.5
 
-            # Disagreement across models
-            disagreement = float(max(phishing_probs) - min(phishing_probs))
-            models_agree = disagreement < 0.3
+            # Disagreement across models (0.0 in single model mode)
+            if model_loader.is_full_ensemble:
+                disagreement = float(max(phishing_probs) - min(phishing_probs))
+                models_agree = disagreement < 0.3
+            else:
+                disagreement = 0.0
+                models_agree = True
 
             explanation = self.explain(cleaned_text) or None
 
@@ -280,6 +285,7 @@ class ContentAnalyzer:
                 ensemble_disagreement=disagreement,
                 models_agree=models_agree,
                 explanation=explanation,
+                single_model_mode=not model_loader.is_full_ensemble,
             ), evasion_labels
 
         except Exception as e:
