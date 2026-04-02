@@ -10,14 +10,17 @@ TOP_DOMAINS = [
     "google.com", "facebook.com", "netflix.com", "instagram.com",
     "twitter.com", "linkedin.com", "dropbox.com", "github.com",
     "chase.com", "bankofamerica.com", "wellsfargo.com", "citibank.com",
-    "irs.gov", "usps.com", "fedex.com", "ups.com"
+    "irs.gov", "usps.com", "fedex.com", "ups.com",
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
 ]
 
 # Single-character and multi-character confusables
+# Note: '1'/'l' omitted — they cause too many false positives on
+# legitimate domains (gmail, hotmail, etc.)
 CONFUSABLES = {
     'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c',
     'у': 'y', 'х': 'x', 'і': 'i', 'ı': 'i', '0': 'o',
-    '1': 'l', 'l': '1', 'rn': 'm', 'vv': 'w', 'ν': 'v',
+    'rn': 'm', 'vv': 'w', 'ν': 'v',
     'ρ': 'p', 'ο': 'o', 'α': 'a', 'ε': 'e', 'ℯ': 'e'
 }
 

@@ -14,7 +14,8 @@ from models.schemas import (
     URLScanResult,
     ContentAnalysisResult,
     HeaderAnalysisResult,
-    HealthResponse
+    HealthResponse,
+    FeedbackRequest,
 )
 from services.email_verifier import email_verifier
 from services.url_scanner import url_scanner
@@ -27,6 +28,9 @@ from services.url_scanner import url_scanner, _url_cache
 from services.header_analyzer import analyze_headers
 from middleware.auth import verify_api_key
 from config import settings
+from db.database import engine, SessionLocal, Base
+from db.models import Scan, Feedback, ActiveLearningQueue  # noqa: F401 — needed for Base.metadata
+from db.crud import save_scan, save_feedback, add_to_active_learning, get_review_queue, get_feedback_stats
 
 
 # Initialize FastAPI app
@@ -52,6 +56,14 @@ app.add_middleware(
 async def startup_event():
     """Initialize background services on startup."""
     await openphish.initialize()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_db():
+    """Dependency that provides an async database session."""
+    async with SessionLocal() as session:
+        yield session
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -69,7 +81,8 @@ async def health_check():
 @app.post("/api/scan", response_model=CompleteScanResponse)
 async def complete_scan(
     request: EmailScanRequest,
-    api_key: str = Depends(verify_api_key)
+    api_key: str = Depends(verify_api_key),
+    db=Depends(get_db),
 ):
     """
     Complete email scan using all three methods:
@@ -102,6 +115,9 @@ async def complete_scan(
         result = analyze_headers(raw)
         return HeaderAnalysisResult(**result)
 
+    # Accumulated evasion labels from all services
+    all_evasion_labels = []
+
     # Run email verification (now async) and URL scan concurrently when both present
     if request.email_address and request.email_text:
         tasks = [
@@ -114,7 +130,8 @@ async def complete_scan(
         url_result, email_result = gathered[0], gathered[1]
         if request.email_headers:
             header_result = gathered[2]
-        content_result = content_analyzer.analyze_content(request.email_text)
+        content_result, content_evasion = content_analyzer.analyze_content(request.email_text)
+        all_evasion_labels.extend(content_evasion)
         domains = _domains_for_dnsbl(request.email_address, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
     elif request.email_address:
@@ -136,7 +153,8 @@ async def complete_scan(
         url_result = gathered[0]
         if request.email_headers:
             header_result = gathered[1]
-        content_result = content_analyzer.analyze_content(request.email_text)
+        content_result, content_evasion = content_analyzer.analyze_content(request.email_text)
+        all_evasion_labels.extend(content_evasion)
         domains = _domains_for_dnsbl(None, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
     elif request.email_headers:
@@ -149,7 +167,18 @@ async def complete_scan(
         content_result=content_result,
         dnsbl_result=dnsbl_result,
         header_analysis=header_result,
+        evasion_labels=all_evasion_labels if all_evasion_labels else None,
     )
+
+    # Persist scan and attach scan_id to response
+    scan_id = await save_scan(db, response, request.email_address)
+    response.scan_id = scan_id
+
+    # Active learning: queue if low confidence or high disagreement
+    confidence = response.content_analysis.confidence if response.content_analysis else 0.0
+    disagreement = 0.0
+    if confidence < 0.65 or disagreement > 0.3:
+        await add_to_active_learning(db, scan_id, confidence, disagreement)
 
     return response
 
@@ -211,7 +240,8 @@ async def scan_content(
             detail="ML model not available. Train the model first using ml/train_model.py"
         )
     
-    return content_analyzer.analyze_content(request.email_text)
+    result, _evasion = content_analyzer.analyze_content(request.email_text)
+    return result
 
 
 @app.get("/api/status/openphish")
@@ -264,6 +294,48 @@ async def headers_status():
         "status": "ok",
         "features": ["spf", "dkim", "dmarc", "reply_to", "hop_analysis"],
     }
+
+
+@app.post("/api/feedback")
+async def submit_feedback(
+    request: FeedbackRequest,
+    db=Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+):
+    """
+    Submit feedback for a scan result.
+    verdict must be one of: TP, FP, FN, TN
+    """
+    try:
+        success = await save_feedback(db, request.scan_id, request.verdict, request.notes)
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}
+
+    if success:
+        return {"success": True, "message": "Feedback recorded successfully"}
+    return {"success": False, "message": f"scan_id '{request.scan_id}' not found"}
+
+
+@app.get("/api/feedback/queue")
+async def feedback_queue(
+    db=Depends(get_db),
+    api_key: str = Depends(verify_api_key),
+):
+    """
+    Return unreviewed active learning queue items (most recent first).
+    """
+    items = await get_review_queue(db)
+    return items
+
+
+@app.get("/api/feedback/stats")
+async def feedback_stats(db=Depends(get_db)):
+    """
+    Return aggregate statistics: scan counts, feedback counts, verdict breakdown,
+    and active learning queue sizes.
+    """
+    stats = await get_feedback_stats(db)
+    return stats
 
 
 if __name__ == "__main__":

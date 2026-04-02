@@ -2,7 +2,7 @@
 Score calculator - combines results from all scanners
 Calculates unified scam score and risk level
 """
-from typing import Optional
+from typing import Optional, List
 from models.schemas import (
     CompleteScanResponse,
     EmailVerificationResult,
@@ -28,6 +28,7 @@ class ScoreCalculator:
         content_result: Optional[ContentAnalysisResult] = None,
         dnsbl_result: Optional[dict] = None,
         header_analysis: Optional[HeaderAnalysisResult] = None,
+        evasion_labels: Optional[List[str]] = None,
     ) -> CompleteScanResponse:
         """
         Calculate unified scam score from all results
@@ -96,6 +97,13 @@ class ScoreCalculator:
             email_result, url_result, content_result, risk_level, dnsbl_result, header_analysis
         )
 
+        # Merge all evasion labels (from content analysis + URL scanning + caller-supplied)
+        merged_evasion: List[str] = list(evasion_labels) if evasion_labels else []
+        if url_result and url_result.url_evasion_labels:
+            for lbl in url_result.url_evasion_labels:
+                if lbl not in merged_evasion:
+                    merged_evasion.append(lbl)
+
         return CompleteScanResponse(
             scam_score=round(scam_score, 2),
             risk_level=risk_level,
@@ -106,6 +114,7 @@ class ScoreCalculator:
             content_analysis=content_result,
             dnsbl_result=dnsbl_result,
             header_analysis=header_analysis,
+            evasion_techniques_detected=merged_evasion if merged_evasion else None,
         )
 
     def _generate_labels(

@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScannerAPI — Phishing Detection Infrastructure</title>
+<meta name="description" content="NSF-funded phishing detection API from Alabama A&M University's Cybersecurity Lab. Published in Springer. Battle-tested at DEF CON. 95% F1 score.">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --crimson: #c41230;
+  --crimson-dark: #a50e28;
+  --crimson-tint: #fef2f2;
+  --crimson-tint2: #fee2e2;
+  --text-head: #0f0f0f;
+  --text-body: #4b5563;
+  --text-muted: #9ca3af;
+  --bg-white: #ffffff;
+  --bg-alt: #fafaf9;
+  --border: #e5e7eb;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-code: 'JetBrains Mono', 'Courier New', monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--text-body);
+  background: var(--bg-white);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── NAV ─────────────────────────────────────────── */
+#nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+#nav.scrolled {
+  border-color: var(--border);
+  box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+}
+.nav-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.nav-logo-text {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--text-head);
+  letter-spacing: -0.3px;
+}
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+}
+.nav-links a {
+  text-decoration: none;
+  color: var(--text-body);
+  font-size: 14.5px;
+  font-weight: 450;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: color 0.2s, background 0.2s;
+}
+.nav-links a:hover {
+  color: var(--text-head);
+  background: var(--bg-alt);
+}
+.btn-nav {
+  background: var(--crimson);
+  color: #fff !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
+  transition: background 0.2s !important;
+}
+.btn-nav:hover { background: var(--crimson-dark) !important; }
+.hamburger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  padding: 4px;
+  background: none;
+  border: none;
+}
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--text-head);
+  border-radius: 2px;
+  transition: all 0.3s;
+}
+.mobile-menu {
+  display: none;
+  flex-direction: column;
+  padding: 12px 24px 20px;
+  border-top: 1px solid var(--border);
+  gap: 2px;
+}
+.mobile-menu.open { display: flex; }
+.mobile-menu a {
+  text-decoration: none;
+  color: var(--text-body);
+  font-size: 15px;
+  font-weight: 450;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.mobile-menu a:last-child { border-bottom: none; }
+
+/* ── HERO ────────────────────────────────────────── */
+#hero {
+  padding: 120px 24px 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+}
+.hero-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 11px;
+  border-radius: 100px;
+  border: 1px solid var(--crimson-tint2);
+  background: var(--crimson-tint);
+  color: var(--crimson);
+  white-space: nowrap;
+}
+.hero-eyebrow {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--crimson);
+  margin-bottom: 16px;
+}
+.hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(44px, 5.5vw, 72px);
+  line-height: 1.08;
+  color: var(--text-head);
+  letter-spacing: -1.5px;
+  margin-bottom: 20px;
+}
+.hero-headline em {
+  font-style: italic;
+  color: var(--crimson);
+}
+.hero-sub {
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--text-body);
+  margin-bottom: 32px;
+  max-width: 500px;
+}
+.hero-ctas {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--crimson);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 22px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: 2px solid var(--crimson);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn-primary:hover { background: var(--crimson-dark); border-color: var(--crimson-dark); transform: translateY(-1px); }
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--crimson);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 22px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: 2px solid var(--crimson);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn-outline:hover { background: var(--crimson-tint); transform: translateY(-1px); }
+.hero-trust {
+  font-size: 13px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.trust-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.hero-panel {
+  background: #0f171e;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #0a1018;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.panel-dots {
+  display: flex;
+  gap: 7px;
+}
+.panel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.dot-r { background: #ff5f57; }
+.dot-y { background: #febc2e; }
+.dot-g { background: #28c840; }
+.panel-label {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.panel-body {
+  padding: 20px 22px 24px;
+  min-height: 340px;
+}
+#typewriter-output {
+  font-family: var(--font-code);
+  font-size: 12.5px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.tw-key { color: #60a5fa; }
+.tw-str { color: #86efac; }
+.tw-num { color: #fb923c; }
+.tw-bool { color: #c084fc; }
+.tw-null { color: #94a3b8; }
+.tw-brace { color: rgba(255,255,255,0.55); }
+#tw-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: #60a5fa;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── RESEARCH ────────────────────────────────────── */
+#research {
+  background: var(--bg-alt);
+  padding: 96px 24px;
+}
+.section-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 3.5vw, 48px);
+  color: var(--text-head);
+  letter-spacing: -0.8px;
+  margin-bottom: 56px;
+  text-align: center;
+  line-height: 1.15;
+}
+.research-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-bottom: 56px;
+}
+.research-card {
+  background: var(--bg-white);
+  border-radius: var(--radius);
+  padding: 32px;
+  border-top: 3px solid var(--crimson);
+  box-shadow: var(--shadow-sm);
+}
+.research-card-icon {
+  font-size: 28px;
+  margin-bottom: 16px;
+  display: block;
+}
+.research-card h3 {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-head);
+  margin-bottom: 10px;
+}
+.research-card p {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+.research-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--crimson), transparent);
+  opacity: 0.4;
+}
+
+/* ── FEATURES ────────────────────────────────────── */
+#features {
+  padding: 96px 24px;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+.feature-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: default;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--crimson-tint);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.feature-card h3 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-head);
+  margin-bottom: 8px;
+}
+.feature-card p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+
+/* ── DEMO ────────────────────────────────────────── */
+#demo {
+  background: var(--bg-alt);
+  padding: 96px 24px;
+}
+.demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  align-items: start;
+}
+.demo-form-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+.demo-form-card h3 {
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-head);
+  margin-bottom: 6px;
+}
+.demo-form-card .form-desc {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-head);
+  margin-bottom: 6px;
+}
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-white);
+  color: var(--text-head);
+  outline: none;
+  transition: border-color 0.2s;
+  resize: vertical;
+}
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--crimson);
+}
+.headers-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--crimson);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  border: none;
+  margin-bottom: 12px;
+}
+.headers-toggle svg { transition: transform 0.2s; }
+.headers-toggle.open svg { transform: rotate(180deg); }
+#headers-area { display: none; }
+#headers-area.open { display: block; }
+.demo-result-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-sm);
+}
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.result-header h3 {
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-head);
+}
+.badge-critical {
+  background: #fef2f2;
+  color: var(--crimson);
+  border: 1px solid var(--crimson-tint2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.gauge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.gauge-svg-wrap {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  overflow: visible;
+}
+.gauge-label {
+  text-align: center;
+  margin-top: -8px;
+}
+.gauge-score {
+  font-family: var(--font-display);
+  font-size: 42px;
+  color: var(--text-head);
+  line-height: 1;
+}
+.gauge-max {
+  font-size: 15px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.signal-bars {
+  margin-bottom: 20px;
+}
+.signal-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.signal-bar-name {
+  font-size: 12.5px;
+  color: var(--text-body);
+  width: 130px;
+  flex-shrink: 0;
+}
+.signal-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.signal-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--crimson);
+  transition: width 1s ease;
+}
+.signal-bar-fill.medium { background: #f59e0b; }
+.signal-bar-fill.low { background: #10b981; }
+.signal-bar-score {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-head);
+  width: 36px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.result-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.label-chip {
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--crimson-tint);
+  color: var(--crimson);
+  border: 1px solid var(--crimson-tint2);
+}
+.result-recommendations {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.result-recommendations h4 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.result-recommendations ul {
+  list-style: none;
+}
+.result-recommendations li {
+  font-size: 13px;
+  color: var(--text-body);
+  padding: 5px 0 5px 18px;
+  position: relative;
+}
+.result-recommendations li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--crimson);
+}
+
+/* ── API REFERENCE ───────────────────────────────── */
+#api-reference {
+  padding: 96px 24px;
+}
+.api-base-url {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  margin-bottom: 40px;
+  font-family: var(--font-code);
+  font-size: 13.5px;
+}
+.api-base-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.api-base-value {
+  color: var(--text-head);
+  font-weight: 500;
+}
+.accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.accordion-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.accordion-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  background: var(--bg-white);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.accordion-trigger:hover { background: var(--bg-alt); }
+.method-badge {
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 5px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.method-post { background: #fef3c7; color: #92400e; }
+.method-get { background: #d1fae5; color: #065f46; }
+.accordion-path {
+  font-family: var(--font-code);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-head);
+  flex: 1;
+}
+.accordion-desc {
+  font-size: 13.5px;
+  color: var(--text-body);
+  flex: 1;
+}
+.accordion-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.25s;
+}
+.accordion-item.open .accordion-chevron { transform: rotate(180deg); }
+.accordion-body {
+  display: none;
+  padding: 0 24px 28px;
+  background: var(--bg-white);
+  border-top: 1px solid var(--border);
+}
+.accordion-item.open .accordion-body { display: block; }
+.code-section {
+  margin-top: 20px;
+}
+.code-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.code-block-wrap {
+  position: relative;
+  background: #0f171e;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #0a1018;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.code-lang-label {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.06em;
+}
+.copy-btn {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.5);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 5px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.copy-btn:hover { color: #fff; background: rgba(255,255,255,0.12); }
+.copy-btn.copied { color: #86efac; border-color: #86efac44; }
+pre.code-block {
+  font-family: var(--font-code);
+  font-size: 12.5px;
+  line-height: 1.7;
+  padding: 16px 18px;
+  overflow-x: auto;
+  color: rgba(255,255,255,0.85);
+  white-space: pre;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+}
+.tab-btn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s, border-color 0.2s;
+}
+.tab-btn.active { color: var(--crimson); border-bottom-color: var(--crimson); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* JSON syntax colors */
+.jk { color: #60a5fa; }
+.js { color: #86efac; }
+.jn { color: #fb923c; }
+.jb { color: #c084fc; }
+.jnull { color: #94a3b8; }
+
+/* ── ANATOMY ─────────────────────────────────────── */
+#anatomy {
+  background: var(--bg-alt);
+  padding: 96px 24px;
+}
+.anatomy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+.anatomy-code-wrap {
+  background: #0f171e;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.anatomy-callouts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 8px;
+}
+.callout-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.callout-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--crimson);
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+.callout-item h4 {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-head);
+  margin-bottom: 4px;
+}
+.callout-item p {
+  font-size: 13.5px;
+  color: var(--text-body);
+  line-height: 1.55;
+}
+.anatomy-subtitle {
+  font-size: 16px;
+  color: var(--text-body);
+  text-align: center;
+  margin-top: -36px;
+  margin-bottom: 56px;
+}
+
+/* ── ACCESS ──────────────────────────────────────── */
+#access {
+  background: var(--crimson);
+  padding: 96px 24px;
+}
+#access .section-title { color: #fff; margin-bottom: 12px; }
+.access-sub {
+  text-align: center;
+  color: rgba(255,255,255,0.75);
+  font-size: 17px;
+  margin-bottom: 52px;
+}
+.access-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 48px;
+}
+.access-card {
+  background: rgba(255,255,255,0.97);
+  border-radius: var(--radius);
+  padding: 32px;
+  text-align: center;
+}
+.access-card-icon {
+  font-size: 36px;
+  margin-bottom: 14px;
+  display: block;
+}
+.access-card h3 {
+  font-family: var(--font-body);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-head);
+  margin-bottom: 8px;
+}
+.access-card p {
+  font-size: 14px;
+  color: var(--text-body);
+  line-height: 1.55;
+  margin-bottom: 16px;
+}
+.access-card-tier {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--crimson);
+  background: var(--crimson-tint);
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--crimson-tint2);
+  display: inline-block;
+}
+.access-cta-wrap {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.btn-white-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 500;
+  padding: 14px 36px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  border: 2px solid rgba(255,255,255,0.6);
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-white-outline:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+.access-credit {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* ── FOOTER ──────────────────────────────────────── */
+footer {
+  background: #0a0a0a;
+  padding: 56px 24px 40px;
+  color: rgba(255,255,255,0.6);
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.footer-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 36px;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.footer-brand h2 {
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.footer-brand p {
+  font-size: 13.5px;
+  line-height: 1.55;
+  max-width: 260px;
+}
+.footer-links-group h4 {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 14px;
+}
+.footer-links-group a {
+  display: block;
+  font-size: 13.5px;
+  color: rgba(255,255,255,0.6);
+  text-decoration: none;
+  margin-bottom: 8px;
+  transition: color 0.2s;
+}
+.footer-links-group a:hover { color: #fff; }
+.footer-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin-bottom: 28px;
+}
+.footer-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-bottom p {
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+.footer-built {
+  font-family: var(--font-code);
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.3);
+}
+
+/* ── ANIMATIONS ──────────────────────────────────── */
+.fade-up {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.fade-up.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── RESPONSIVE ──────────────────────────────────── */
+@media (max-width: 1024px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .research-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .hamburger { display: flex; }
+  #hero {
+    grid-template-columns: 1fr;
+    padding: 96px 20px 60px;
+    gap: 40px;
+  }
+  .hero-headline { font-size: 40px; }
+  .research-grid { grid-template-columns: 1fr; }
+  .features-grid { grid-template-columns: 1fr; }
+  .demo-grid { grid-template-columns: 1fr; }
+  .access-cards { grid-template-columns: 1fr; }
+  .anatomy-grid { grid-template-columns: 1fr; }
+  .footer-top { flex-direction: column; }
+  .footer-bottom { flex-direction: column; text-align: center; }
+}
+@media (max-width: 480px) {
+  .hero-pills { gap: 6px; }
+  .pill { font-size: 11px; }
+  .hero-ctas { flex-direction: column; }
+  .btn-primary, .btn-outline { justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ───────────────────────────────────────── -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <path d="M14 2L3 7.5V14c0 5.8 4.6 10.7 11 12 6.4-1.3 11-6.2 11-12V7.5L14 2z" fill="#fef2f2" stroke="#c41230" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M9.5 14l3 3 6-6" stroke="#c41230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="nav-logo-text">ScannerAPI</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#research">Research</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#api-reference">API Reference</a></li>
+      <li><a href="#access">Access</a></li>
+      <li><a href="#access" class="btn-nav">Request API Key</a></li>
+    </ul>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="#research">Research</a>
+    <a href="#features">Features</a>
+    <a href="#api-reference">API Reference</a>
+    <a href="#access">Access</a>
+    <a href="#access" style="color: var(--crimson); font-weight: 600;">Request API Key</a>
+  </div>
+</nav>
+
+<!-- ── HERO ──────────────────────────────────────── -->
+<section id="hero">
+  <div class="hero-left fade-up">
+    <div class="hero-pills">
+      <span class="pill">🔬 NSF Funded</span>
+      <span class="pill">🏛 AAMU Cybersecurity Lab</span>
+      <span class="pill">📄 Springer</span>
+      <span class="pill">🎪 DEF CON</span>
+    </div>
+    <p class="hero-eyebrow">Peer-Reviewed Phishing Detection Infrastructure</p>
+    <h1 class="hero-headline">Stop phishing emails<br><em>before they land.</em></h1>
+    <p class="hero-sub">Born from NSF-funded research at Alabama A&M University's Cybersecurity Lab. Published in Springer. Battle-tested at DEF CON. Now available as a production API.</p>
+    <div class="hero-ctas">
+      <a href="#api-reference" class="btn-primary">View API Reference →</a>
+      <a href="#access" class="btn-outline">Request Access</a>
+    </div>
+    <div class="hero-trust">
+      <span>6 detection layers</span>
+      <span class="trust-dot"></span>
+      <span>&lt;200ms response</span>
+      <span class="trust-dot"></span>
+      <span>95% F1 score</span>
+      <span class="trust-dot"></span>
+      <span>80k training emails</span>
+    </div>
+  </div>
+  <div class="hero-right fade-up" style="transition-delay:0.15s">
+    <div class="hero-panel">
+      <div class="panel-header">
+        <div class="panel-dots">
+          <div class="panel-dot dot-r"></div>
+          <div class="panel-dot dot-y"></div>
+          <div class="panel-dot dot-g"></div>
+        </div>
+        <span class="panel-label">Live Scan Result</span>
+        <span style="width:52px"></span>
+      </div>
+      <div class="panel-body">
+        <div id="typewriter-output"></div><span id="tw-cursor"></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── RESEARCH ──────────────────────────────────── -->
+<section id="research">
+  <div class="section-inner">
+    <h2 class="section-title fade-up">Built on peer-reviewed research</h2>
+    <div class="research-grid fade-up">
+      <div class="research-card">
+        <span class="research-card-icon">🔬</span>
+        <h3>NSF Funded</h3>
+        <p>This infrastructure was developed under a National Science Foundation grant awarded to Alabama A&M University's Cybersecurity Laboratory, supporting rigorous academic research into email-based threat detection at scale.</p>
+      </div>
+      <div class="research-card">
+        <span class="research-card-icon">📄</span>
+        <h3>Springer Publication</h3>
+        <p>The detection methodology and experimental results were peer-reviewed and published through Springer, one of the world's leading academic publishers, validating our multi-signal classification approach.</p>
+      </div>
+      <div class="research-card">
+        <span class="research-card-icon">🎪</span>
+        <h3>DEF CON Las Vegas</h3>
+        <p>Presented at DEF CON, the world's largest and most respected hacker conference in Las Vegas, where the system was stress-tested by the security community and received recognition from practitioners.</p>
+      </div>
+    </div>
+    <div class="research-divider fade-up"></div>
+  </div>
+</section>
+
+<!-- ── FEATURES ──────────────────────────────────── -->
+<section id="features">
+  <div class="section-inner">
+    <h2 class="section-title fade-up">Every signal, working in parallel</h2>
+    <div class="features-grid fade-up">
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M10 6v4l2.5 2.5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3>Google Safe Browsing</h3>
+        <p>Real-time lookup against Google's phishing and malware URL database, updated continuously with newly discovered threats.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M3 10a7 7 0 1 1 14 0A7 7 0 0 1 3 10z" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M10 7v6M7 10h6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3>OpenPhish Feed</h3>
+        <p>Community-verified phishing URL intelligence, cross-referenced against our scan requests for immediate threat identification.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="5" width="14" height="10" rx="2" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M7 10h6M10 7v6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3>DNSBL Queries</h3>
+        <p>Parallel lookups against Spamhaus, SURBL, and URIBL blocklists to catch known spam infrastructure and malicious domains instantly.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 14l4-4 3 3 5-6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="16" cy="6" r="2" fill="#c41230"/>
+          </svg>
+        </div>
+        <h3>ML Classifier</h3>
+        <p>TF-IDF ensemble classifier trained on 80,000 emails, achieving 95% F1 score on holdout test sets across multiple phishing categories.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M4 6h12M4 10h8M4 14h5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h3>Header Analysis</h3>
+        <p>Deep inspection of SPF, DKIM, and DMARC authentication results, plus Reply-To spoofing and display name impersonation detection.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M10 3C6.5 3 3 5.5 3 10s3.5 7 7 7 7-2.5 7-7-3.5-7-7-7z" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M13 10l-4 2.5V7.5L13 10z" fill="#c41230"/>
+          </svg>
+        </div>
+        <h3>URL Intelligence</h3>
+        <p>Shannon entropy scoring, homoglyph character substitution detection, redirect chain traversal, and typosquatting pattern matching.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M6 4h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M8 9l4 2-4 2V9z" fill="#c41230"/>
+          </svg>
+        </div>
+        <h3>Evasion Detection</h3>
+        <p>Identifies Base64-encoded payloads, CSS-hidden content, misleading HTML comments, and other obfuscation techniques used to bypass filters.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/>
+            <path d="M10 6v1M10 13v1M6 10h1M13 10h1" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="10" cy="10" r="2" fill="#c41230"/>
+          </svg>
+        </div>
+        <h3>Domain Age</h3>
+        <p>WHOIS-based domain registration age lookup. Domains registered under 30 days are flagged as high risk — a consistent indicator of phishing infrastructure.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── DEMO ───────────────────────────────────────── -->
+<section id="demo">
+  <div class="section-inner">
+    <h2 class="section-title fade-up">See it in action</h2>
+    <div class="demo-grid fade-up">
+      <div class="demo-form-card">
+        <h3>Scan an email</h3>
+        <p class="form-desc">Submit email details to analyze with all six detection layers.</p>
+        <div class="form-group">
+          <label for="demo-email">Sender Address</label>
+          <input type="email" id="demo-email" placeholder="support@paypa1.com">
+        </div>
+        <div class="form-group">
+          <label for="demo-body">Email Body</label>
+          <textarea id="demo-body" rows="4" placeholder="Verify your PayPal account immediately or it will be suspended..."></textarea>
+        </div>
+        <button class="headers-toggle" id="headers-toggle">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M3 5l4 4 4-4" stroke="#c41230" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Add email headers (optional)
+        </button>
+        <div id="headers-area">
+          <div class="form-group">
+            <label for="demo-headers">Raw Headers</label>
+            <textarea id="demo-headers" rows="4" placeholder="Authentication-Results: spf=fail; dkim=fail; dmarc=fail&#10;From: PayPal Support &lt;support@paypa1.com&gt;&#10;Reply-To: attacker@gmail.com"></textarea>
+          </div>
+        </div>
+        <button class="btn-primary" style="width:100%; justify-content:center">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/>
+            <path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          Analyze Email
+        </button>
+        <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;">Demo shows static example result. Live scanning requires API key.</p>
+      </div>
+
+      <div class="demo-result-card">
+        <div class="result-header">
+          <h3>Scan Result</h3>
+          <span class="badge-critical">CRITICAL</span>
+        </div>
+        <div class="gauge-container">
+          <div class="gauge-svg-wrap">
+            <svg width="160" height="90" viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 85 A65 65 0 0 1 145 85" stroke="#f3f4f6" stroke-width="12" stroke-linecap="round" fill="none"/>
+              <path d="M15 85 A65 65 0 0 1 145 85" stroke="#c41230" stroke-width="12" stroke-linecap="round" fill="none"
+                stroke-dasharray="204" stroke-dashoffset="35" style="transition:stroke-dashoffset 1.2s ease"/>
+              <text x="80" y="78" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="34" fill="#0f0f0f">83</text>
+              <text x="80" y="92" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="11" fill="#9ca3af">out of 100</text>
+            </svg>
+          </div>
+        </div>
+        <div class="signal-bars">
+          <div class="signal-bar">
+            <span class="signal-bar-name">Content Analysis</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:98.6%"></div></div>
+            <span class="signal-bar-score">98.6</span>
+          </div>
+          <div class="signal-bar">
+            <span class="signal-bar-name">Header Analysis</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:100%"></div></div>
+            <span class="signal-bar-score">100</span>
+          </div>
+          <div class="signal-bar">
+            <span class="signal-bar-name">URL Intelligence</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:100%"></div></div>
+            <span class="signal-bar-score">100</span>
+          </div>
+          <div class="signal-bar">
+            <span class="signal-bar-name">Safe Browsing</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill medium" style="width:45%"></div></div>
+            <span class="signal-bar-score">45</span>
+          </div>
+          <div class="signal-bar">
+            <span class="signal-bar-name">DNSBL</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill low" style="width:20%"></div></div>
+            <span class="signal-bar-score">20</span>
+          </div>
+          <div class="signal-bar">
+            <span class="signal-bar-name">Domain Age</span>
+            <div class="signal-bar-track"><div class="signal-bar-fill medium" style="width:60%"></div></div>
+            <span class="signal-bar-score">60</span>
+          </div>
+        </div>
+        <div class="result-labels">
+          <span class="label-chip">Homoglyph Domain</span>
+          <span class="label-chip">DMARC Fail</span>
+          <span class="label-chip">Phishing Content</span>
+          <span class="label-chip">Reply-To Mismatch</span>
+        </div>
+        <div class="result-recommendations">
+          <h4>Recommendations</h4>
+          <ul>
+            <li>Do not click any links in this email</li>
+            <li>This email failed DMARC authentication — sender domain is spoofed</li>
+            <li>Display name impersonates PayPal but was not sent from their domain</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── API REFERENCE ─────────────────────────────── -->
+<section id="api-reference">
+  <div class="section-inner">
+    <h2 class="section-title fade-up">Simple, predictable API</h2>
+    <div class="api-base-url fade-up">
+      <span class="api-base-label">Base URL</span>
+      <span class="api-base-value">https://scanner-api.railway.app</span>
+    </div>
+    <div class="accordion-list fade-up">
+
+      <!-- POST /api/scan -->
+      <div class="accordion-item open" id="acc-scan">
+        <button class="accordion-trigger" onclick="toggleAccordion('acc-scan')">
+          <span class="method-badge method-post">POST</span>
+          <span class="accordion-path">/api/scan</span>
+          <span class="accordion-desc">Complete email scan — all six detection layers</span>
+          <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="accordion-body">
+          <div class="code-section">
+            <p class="code-section-title">Request Body</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"email_address"</span>: <span class="js">"support@paypa1.com"</span>,
+  <span class="jk">"email_text"</span>: <span class="js">"Verify your PayPal account immediately or it will be suspended"</span>,
+  <span class="jk">"email_headers"</span>: <span class="js">"Authentication-Results: spf=fail; dkim=fail; dmarc=fail (p=REJECT)\r\nFrom: PayPal Support &lt;support@paypa1.com&gt;\r\nReply-To: attacker@gmail.com"</span>
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+          <div class="code-section">
+            <p class="code-section-title">Response</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"scan_id"</span>: <span class="js">"1a49b796-d242-448d-929a-dbec00106dcf"</span>,
+  <span class="jk">"scam_score"</span>: <span class="jn">83.38</span>,
+  <span class="jk">"risk_level"</span>: <span class="js">"CRITICAL"</span>,
+  <span class="jk">"labels"</span>: [<span class="js">"Homoglyph Domain"</span>, <span class="js">"DMARC Fail"</span>, <span class="js">"Phishing Content"</span>, <span class="js">"Reply-To Mismatch"</span>],
+  <span class="jk">"recommendations"</span>: [
+    <span class="js">"Do not click any links in this email"</span>,
+    <span class="js">"This email failed DMARC authentication — sender domain is spoofed"</span>,
+    <span class="js">"Display name impersonates PayPal but was not sent from their domain"</span>
+  ],
+  <span class="jk">"content_analysis"</span>: <span class="jb">{</span>
+    <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
+    <span class="jk">"confidence"</span>: <span class="jn">0.986</span>,
+    <span class="jk">"risk_score"</span>: <span class="jn">98.6</span>,
+    <span class="jk">"is_phishing"</span>: <span class="jb">true</span>
+  <span class="jb">}</span>,
+  <span class="jk">"header_analysis"</span>: <span class="jb">{</span>
+    <span class="jk">"dmarc"</span>: <span class="js">"fail"</span>,
+    <span class="jk">"dmarc_policy"</span>: <span class="js">"reject"</span>,
+    <span class="jk">"reply_to_mismatch"</span>: <span class="jb">true</span>,
+    <span class="jk">"display_name_spoof"</span>: <span class="jb">true</span>,
+    <span class="jk">"spoofed_brand"</span>: <span class="js">"PayPal"</span>,
+    <span class="jk">"risk_score"</span>: <span class="jn">100.0</span>,
+    <span class="jk">"flags"</span>: [<span class="js">"DMARC_FAIL"</span>, <span class="js">"REPLY_TO_MISMATCH"</span>, <span class="js">"DISPLAY_NAME_SPOOF"</span>]
+  <span class="jb">}</span>,
+  <span class="jk">"email_verification"</span>: <span class="jb">{</span>
+    <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,
+    <span class="jk">"risk_score"</span>: <span class="jn">100.0</span>
+  <span class="jb">}</span>
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+          <div class="code-section">
+            <p class="code-section-title">Code Examples</p>
+            <div class="tabs" id="tabs-scan">
+              <button class="tab-btn active" onclick="switchTab('tabs-scan','curl')">cURL</button>
+              <button class="tab-btn" onclick="switchTab('tabs-scan','python')">Python</button>
+              <button class="tab-btn" onclick="switchTab('tabs-scan','js')">JavaScript</button>
+            </div>
+            <div id="tabs-scan-curl" class="tab-panel active">
+              <div class="code-block-wrap">
+                <div class="code-block-header">
+                  <span class="code-lang-label">bash</span>
+                  <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="code-block">curl -X POST https://scanner-api.railway.app/api/scan \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
+  -d '{"email_address": "test@example.com", "email_text": "Your message here"}'</pre>
+              </div>
+            </div>
+            <div id="tabs-scan-python" class="tab-panel">
+              <div class="code-block-wrap">
+                <div class="code-block-header">
+                  <span class="code-lang-label">python</span>
+                  <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="code-block">import requests
+response = requests.post(
+    "https://scanner-api.railway.app/api/scan",
+    headers={"X-API-Key": "your_api_key_here"},
+    json={"email_address": "test@example.com", "email_text": "Your message here"}
+)
+result = response.json()
+print(f"Risk Level: {result['risk_level']}, Score: {result['scam_score']}")</pre>
+              </div>
+            </div>
+            <div id="tabs-scan-js" class="tab-panel">
+              <div class="code-block-wrap">
+                <div class="code-block-header">
+                  <span class="code-lang-label">javascript</span>
+                  <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <pre class="code-block">const response = await fetch('https://scanner-api.railway.app/api/scan', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json', 'X-API-Key': 'your_api_key_here'},
+  body: JSON.stringify({email_address: 'test@example.com', email_text: 'Your message here'})
+});
+const result = await response.json();
+console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POST /api/scan/urls -->
+      <div class="accordion-item" id="acc-urls">
+        <button class="accordion-trigger" onclick="toggleAccordion('acc-urls')">
+          <span class="method-badge method-post">POST</span>
+          <span class="accordion-path">/api/scan/urls</span>
+          <span class="accordion-desc">URL-only scan — blocklist and intelligence checks</span>
+          <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="accordion-body">
+          <div class="code-section">
+            <p class="code-section-title">Request Body</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"urls"</span>: [<span class="js">"https://paypa1.com/verify"</span>, <span class="js">"https://secure-login.bank.xyz"</span>]
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+          <div class="code-section">
+            <p class="code-section-title">Response</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"scan_id"</span>: <span class="js">"f83a21bc-..."</span>,
+  <span class="jk">"urls_analyzed"</span>: <span class="jn">2</span>,
+  <span class="jk">"results"</span>: [
+    <span class="jb">{</span>
+      <span class="jk">"url"</span>: <span class="js">"https://paypa1.com/verify"</span>,
+      <span class="jk">"risk_score"</span>: <span class="jn">97.5</span>,
+      <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,
+      <span class="jk">"safe_browsing_hit"</span>: <span class="jb">false</span>,
+      <span class="jk">"dnsbl_hit"</span>: <span class="jb">false</span>,
+      <span class="jk">"entropy_score"</span>: <span class="jn">4.2</span>
+    <span class="jb">}</span>
+  ]
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- POST /api/scan/content -->
+      <div class="accordion-item" id="acc-content">
+        <button class="accordion-trigger" onclick="toggleAccordion('acc-content')">
+          <span class="method-badge method-post">POST</span>
+          <span class="accordion-path">/api/scan/content</span>
+          <span class="accordion-desc">Content classification — ML model inference only</span>
+          <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="accordion-body">
+          <div class="code-section">
+            <p class="code-section-title">Request Body</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"text"</span>: <span class="js">"Urgent: Your account has been compromised. Click here to verify now."</span>
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+          <div class="code-section">
+            <p class="code-section-title">Response</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
+  <span class="jk">"confidence"</span>: <span class="jn">0.941</span>,
+  <span class="jk">"risk_score"</span>: <span class="jn">94.1</span>,
+  <span class="jk">"is_phishing"</span>: <span class="jb">true</span>,
+  <span class="jk">"model_version"</span>: <span class="js">"tfidf-ensemble-v2"</span>
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GET /health -->
+      <div class="accordion-item" id="acc-health">
+        <button class="accordion-trigger" onclick="toggleAccordion('acc-health')">
+          <span class="method-badge method-get">GET</span>
+          <span class="accordion-path">/health</span>
+          <span class="accordion-desc">Health check — service status and uptime</span>
+          <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div class="accordion-body">
+          <div class="code-section">
+            <p class="code-section-title">Response</p>
+            <div class="code-block-wrap">
+              <div class="code-block-header">
+                <span class="code-lang-label">JSON</span>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+              </div>
+              <pre class="code-block"><span class="jb">{</span>
+  <span class="jk">"status"</span>: <span class="js">"healthy"</span>,
+  <span class="jk">"version"</span>: <span class="js">"2.1.0"</span>,
+  <span class="jk">"model_loaded"</span>: <span class="jb">true</span>,
+  <span class="jk">"uptime_seconds"</span>: <span class="jn">86420</span>,
+  <span class="jk">"services"</span>: <span class="jb">{</span>
+    <span class="jk">"ml_classifier"</span>: <span class="js">"online"</span>,
+    <span class="jk">"safe_browsing"</span>: <span class="js">"online"</span>,
+    <span class="jk">"dnsbl"</span>: <span class="js">"online"</span>
+  <span class="jb">}</span>
+<span class="jb">}</span></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── ANATOMY ────────────────────────────────────── -->
+<section id="anatomy">
+  <div class="section-inner">
+    <h2 class="section-title fade-up">Transparent by design</h2>
+    <p class="anatomy-subtitle fade-up">Every field in the response has a purpose. Nothing is a black box.</p>
+    <div class="anatomy-grid fade-up">
+      <div class="anatomy-code-wrap">
+        <div class="code-block-header">
+          <span class="code-lang-label">Response Structure</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+        <pre class="code-block" style="font-size:12px">{
+  <span class="jk">"scan_id"</span>: <span class="js">"1a49b796-..."</span>,        <span style="color:#4b5563">// ← unique per request</span>
+  <span class="jk">"scam_score"</span>: <span class="jn">83.38</span>,            <span style="color:#4b5563">// ← 0–100 composite</span>
+  <span class="jk">"risk_level"</span>: <span class="js">"CRITICAL"</span>,        <span style="color:#4b5563">// ← SAFE/LOW/MED/HIGH/CRIT</span>
+  <span class="jk">"labels"</span>: [...],               <span style="color:#4b5563">// ← human-readable signals</span>
+  <span class="jk">"recommendations"</span>: [...],      <span style="color:#4b5563">// ← actionable guidance</span>
+  <span class="jk">"content_analysis"</span>: {          <span style="color:#4b5563">// ← ML model output</span>
+    <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
+    <span class="jk">"confidence"</span>: <span class="jn">0.986</span>,         <span style="color:#4b5563">// ← 0.0–1.0</span>
+    <span class="jk">"is_phishing"</span>: <span class="jb">true</span>
+  },
+  <span class="jk">"header_analysis"</span>: {           <span style="color:#4b5563">// ← SPF/DKIM/DMARC</span>
+    <span class="jk">"dmarc"</span>: <span class="js">"fail"</span>,
+    <span class="jk">"reply_to_mismatch"</span>: <span class="jb">true</span>,    <span style="color:#4b5563">// ← Reply-To ≠ From</span>
+    <span class="jk">"spoofed_brand"</span>: <span class="js">"PayPal"</span>,    <span style="color:#4b5563">// ← detected impersonation</span>
+    <span class="jk">"flags"</span>: [...]               <span style="color:#4b5563">// ← machine-readable flags</span>
+  },
+  <span class="jk">"email_verification"</span>: {        <span style="color:#4b5563">// ← domain checks</span>
+    <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,  <span style="color:#4b5563">// ← paypa1.com ≠ paypal.com</span>
+    <span class="jk">"risk_score"</span>: <span class="jn">100.0</span>
+  }
+}</pre>
+      </div>
+      <div class="anatomy-callouts">
+        <div class="callout-item">
+          <div class="callout-dot"></div>
+          <div>
+            <h4>Composite Score (scam_score)</h4>
+            <p>A weighted average across all active detection layers, normalized to 0–100. Weights are calibrated on the 80k training corpus to minimize false positives on legitimate transactional emails.</p>
+          </div>
+        </div>
+        <div class="callout-item">
+          <div class="callout-dot"></div>
+          <div>
+            <h4>Risk Level Tiers</h4>
+            <p>SAFE (&lt;20), LOW (20–39), MEDIUM (40–59), HIGH (60–79), CRITICAL (80+). Tier boundaries were set to match industry-standard SOC triage thresholds for email security workflows.</p>
+          </div>
+        </div>
+        <div class="callout-item">
+          <div class="callout-dot"></div>
+          <div>
+            <h4>Machine-Readable Flags</h4>
+            <p>The <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">flags</code> array in each sub-analysis contains uppercase string constants ideal for programmatic routing, SIEM integration, and automated quarantine rules.</p>
+          </div>
+        </div>
+        <div class="callout-item">
+          <div class="callout-dot"></div>
+          <div>
+            <h4>Homoglyph Detection</h4>
+            <p>The email_verification layer compares the sender domain character-by-character against a curated list of major brands, detecting substitutions like <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">1→l</code>, <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">0→o</code>, and Unicode lookalikes.</p>
+          </div>
+        </div>
+        <div class="callout-item">
+          <div class="callout-dot"></div>
+          <div>
+            <h4>Human-Readable Labels</h4>
+            <p>The top-level labels array condenses the most significant findings into short strings suitable for display in email clients, browser extensions, or end-user dashboards without exposing raw internals.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── ACCESS ─────────────────────────────────────── -->
+<section id="access">
+  <div class="section-inner">
+    <h2 class="section-title">Request API Access</h2>
+    <p class="access-sub">Designed to support researchers, defenders, and builders fighting phishing at every level.</p>
+    <div class="access-cards fade-up">
+      <div class="access-card">
+        <span class="access-card-icon">🎓</span>
+        <h3>Researchers &amp; Students</h3>
+        <p>Free tier with generous rate limits for academic use, coursework, and thesis research. No credit card required. Cite us in your paper.</p>
+        <span class="access-card-tier">Free · Academic</span>
+      </div>
+      <div class="access-card">
+        <span class="access-card-icon">🛡️</span>
+        <h3>Security Teams</h3>
+        <p>Custom rate limits, production SLA guarantees, and dedicated support for security operations centers and enterprise email security integrations.</p>
+        <span class="access-card-tier">Custom · Production</span>
+      </div>
+      <div class="access-card">
+        <span class="access-card-icon">🌐</span>
+        <h3>Open Source Projects</h3>
+        <p>Free access for qualifying open source security tools, email clients, and community projects that help protect users from phishing.</p>
+        <span class="access-card-tier">Free · OSS</span>
+      </div>
+    </div>
+    <div class="access-cta-wrap fade-up">
+      <a href="mailto:aamu-cybersecurity@example.com" class="btn-white-outline">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.4"/>
+          <path d="M2 6l7 5 7-5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Contact the Lab for API Access
+      </a>
+    </div>
+    <p class="access-credit">Developed at AAMU Cybersecurity Lab &nbsp;·&nbsp; NSF Funded</p>
+  </div>
+</section>
+
+<!-- ── FOOTER ─────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <h2>
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+            <path d="M14 2L3 7.5V14c0 5.8 4.6 10.7 11 12 6.4-1.3 11-6.2 11-12V7.5L14 2z" fill="rgba(196,18,48,0.2)" stroke="#c41230" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M9.5 14l3 3 6-6" stroke="#c41230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ScannerAPI
+        </h2>
+        <p>Phishing detection infrastructure built on NSF-funded research from Alabama A&M University's Cybersecurity Laboratory.</p>
+      </div>
+      <div class="footer-links-group">
+        <h4>API</h4>
+        <a href="#api-reference">Reference</a>
+        <a href="#api-reference">Endpoints</a>
+        <a href="#access">Request Key</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Research</h4>
+        <a href="#research">Origins</a>
+        <a href="#research">Springer Paper</a>
+        <a href="#research">DEF CON</a>
+      </div>
+      <div class="footer-links-group">
+        <h4>Resources</h4>
+        <a href="#features">Features</a>
+        <a href="#anatomy">Response Anatomy</a>
+        <a href="#demo">Live Demo</a>
+      </div>
+    </div>
+    <div class="footer-divider"></div>
+    <div class="footer-bottom">
+      <p>NSF Funded &nbsp;·&nbsp; AAMU Cybersecurity Lab &nbsp;·&nbsp; Published in Springer &nbsp;·&nbsp; Presented at DEF CON Las Vegas</p>
+      <span class="footer-built">Built with FastAPI · Python · Deployed on Railway</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── NAV SHADOW ────────────────────────────────────
+(function() {
+  var nav = document.getElementById('nav');
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 10) {
+      nav.classList.add('scrolled');
+    } else {
+      nav.classList.remove('scrolled');
+    }
+  }, { passive: true });
+})();
+
+// ── HAMBURGER ─────────────────────────────────────
+(function() {
+  var btn = document.getElementById('hamburger');
+  var menu = document.getElementById('mobile-menu');
+  btn.addEventListener('click', function() {
+    menu.classList.toggle('open');
+  });
+  menu.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() {
+      menu.classList.remove('open');
+    });
+  });
+})();
+
+// ── INTERSECTION OBSERVER FADE-UP ─────────────────
+(function() {
+  var elements = document.querySelectorAll('.fade-up');
+  if (!window.IntersectionObserver) {
+    elements.forEach(function(el) { el.classList.add('visible'); });
+    return;
+  }
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  elements.forEach(function(el) { observer.observe(el); });
+})();
+
+// ── TYPEWRITER JSON ───────────────────────────────
+(function() {
+  var output = document.getElementById('typewriter-output');
+  var cursor = document.getElementById('tw-cursor');
+
+  var jsonTokens = [
+    { type: 'brace', text: '{' }, { type: 'plain', text: '\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"scan_id"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"1a49b796-d242-448d-929a-dbec00106dcf"' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"scam_score"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '83.38' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"risk_level"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"CRITICAL"' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"labels"' }, { type: 'plain', text: ': [' }, { type: 'str', text: '"Homoglyph Domain"' }, { type: 'plain', text: ', ' }, { type: 'str', text: '"DMARC Fail"' }, { type: 'plain', text: ', ' }, { type: 'str', text: '"Phishing Content"' }, { type: 'plain', text: '],\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"content_analysis"' }, { type: 'plain', text: ': {\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"prediction"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"Phishing Email"' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"confidence"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '0.986' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"is_phishing"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: '\n' },
+    { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"header_analysis"' }, { type: 'plain', text: ': {\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"dmarc"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"fail"' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"reply_to_mismatch"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"spoofed_brand"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"PayPal"' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"risk_score"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '100.0' }, { type: 'plain', text: '\n' },
+    { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '  ' }, { type: 'key', text: '"email_verification"' }, { type: 'plain', text: ': {\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"homoglyph_detected"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: ',\n' },
+    { type: 'plain', text: '    ' }, { type: 'key', text: '"risk_score"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '100.0' }, { type: 'plain', text: '\n' },
+    { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: '\n' },
+    { type: 'brace', text: '}' }
+  ];
+
+  var colorMap = {
+    key: '#60a5fa',
+    str: '#86efac',
+    num: '#fb923c',
+    bool: '#c084fc',
+    null: '#94a3b8',
+    brace: 'rgba(255,255,255,0.55)',
+    plain: 'rgba(255,255,255,0.75)'
+  };
+
+  var fullHTML = '';
+  jsonTokens.forEach(function(token) {
+    var color = colorMap[token.type] || 'rgba(255,255,255,0.75)';
+    var escaped = token.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    if (token.type === 'plain') {
+      fullHTML += escaped.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+    } else {
+      fullHTML += '<span style="color:' + color + '">' + escaped + '</span>';
+    }
+  });
+
+  // Build a flat list of characters with their associated HTML open/close
+  // Instead, type character by character using the rendered HTML approach:
+  // We'll stream tokens, char by char within each token.
+
+  var tokenIndex = 0;
+  var charIndex = 0;
+  var currentHTML = '';
+  var openSpan = false;
+  var typing = false;
+
+  function getNextCharHTML() {
+    if (tokenIndex >= jsonTokens.length) return null;
+    var token = jsonTokens[tokenIndex];
+    var ch = token.text[charIndex];
+    charIndex++;
+    if (charIndex >= token.text.length) {
+      charIndex = 0;
+      tokenIndex++;
+    }
+    var color = colorMap[token.type] || 'rgba(255,255,255,0.75)';
+    if (token.type === 'plain') {
+      if (ch === '\n') return '<br>';
+      if (ch === ' ') return '&nbsp;';
+      return ch;
+    }
+    return '<span style="color:' + color + '">' + (ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch) + '</span>';
+  }
+
+  function typeNext() {
+    if (!typing) return;
+    var ch = getNextCharHTML();
+    if (ch === null) {
+      typing = false;
+      setTimeout(resetAndType, 3000);
+      return;
+    }
+    currentHTML += ch;
+    output.innerHTML = currentHTML;
+    var delay = 18 + Math.random() * 14;
+    setTimeout(typeNext, delay);
+  }
+
+  function resetAndType() {
+    currentHTML = '';
+    tokenIndex = 0;
+    charIndex = 0;
+    output.innerHTML = '';
+    typing = true;
+    typeNext();
+  }
+
+  resetAndType();
+})();
+
+// ── ACCORDION ─────────────────────────────────────
+function toggleAccordion(id) {
+  var item = document.getElementById(id);
+  var isOpen = item.classList.contains('open');
+  item.classList.toggle('open', !isOpen);
+}
+
+// ── TABS ──────────────────────────────────────────
+function switchTab(groupId, tabName) {
+  var group = document.getElementById(groupId);
+  var buttons = group.querySelectorAll('.tab-btn');
+  var panels = group.parentElement.querySelectorAll('.tab-panel');
+
+  buttons.forEach(function(btn) { btn.classList.remove('active'); });
+  panels.forEach(function(panel) { panel.classList.remove('active'); });
+
+  buttons.forEach(function(btn) {
+    if (btn.textContent.toLowerCase().replace(/[^a-z]/g,'') === tabName.replace(/[^a-z]/g,'')) {
+      btn.classList.add('active');
+    }
+  });
+
+  var targetPanel = document.getElementById(groupId + '-' + tabName);
+  if (targetPanel) targetPanel.classList.add('active');
+}
+
+// ── COPY TO CLIPBOARD ─────────────────────────────
+function copyCode(btn) {
+  var wrap = btn.closest('.code-block-wrap');
+  var pre = wrap.querySelector('pre.code-block');
+  var text = pre ? pre.innerText : '';
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// ── HEADERS TOGGLE ────────────────────────────────
+(function() {
+  var toggle = document.getElementById('headers-toggle');
+  var area = document.getElementById('headers-area');
+  toggle.addEventListener('click', function() {
+    toggle.classList.toggle('open');
+    area.classList.toggle('open');
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -46,6 +46,7 @@ class URLScanResult(BaseModel):
     gsb_details: Optional[List[str]] = Field(None, description="URLs flagged by Google Safe Browsing")
     canonical_urls: Optional[Dict] = Field(None, description="Mapping of original_url to canonicalization result dict")
     url_signals: Optional[List[dict]] = Field(None, description="URL signal scoring results per canonical URL")
+    url_evasion_labels: Optional[List[str]] = Field(None, description="Evasion technique labels from URL extraction")
 
 
 class ContentAnalysisResult(BaseModel):
@@ -76,6 +77,7 @@ class HeaderAnalysisResult(BaseModel):
 
 class CompleteScanResponse(BaseModel):
     """Complete scan response with all results"""
+    scan_id: Optional[str] = None
     scam_score: float = Field(ge=0.0, le=100.0, description="Overall scam score (0-100)")
     risk_level: str = Field(description="Risk categorization: LOW, MEDIUM, HIGH, CRITICAL")
     labels: List[str] = Field(default_factory=list, description="UI badges/labels for detected risks")
@@ -85,6 +87,7 @@ class CompleteScanResponse(BaseModel):
     content_analysis: Optional[ContentAnalysisResult] = None
     dnsbl_result: Optional[dict] = None
     header_analysis: Optional[HeaderAnalysisResult] = None
+    evasion_techniques_detected: Optional[List[str]] = Field(None, description="Evasion technique labels detected across all scan stages")
     
     class Config:
         json_schema_extra = {
@@ -122,3 +125,10 @@ class HealthResponse(BaseModel):
     """Health check response"""
     status: str = Field(description="Service status")
     ml_model_loaded: bool = Field(description="Whether ML model is available")
+
+
+class FeedbackRequest(BaseModel):
+    """Request schema for submitting scan feedback"""
+    scan_id: str
+    verdict: str = Field(description="One of: TP, FP, FN, TN")
+    notes: Optional[str] = None

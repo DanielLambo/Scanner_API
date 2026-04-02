@@ -139,6 +139,33 @@ def score_url(url: str) -> dict:
         risk += 50
         signals_fired.append("IP_HOST")
 
+    # ------------------------------------------------------------------
+    # I) Hyphen count in hostname
+    # ------------------------------------------------------------------
+    hyphen_count = hostname.count("-")
+    if hyphen_count > 6:
+        risk += 35
+        signals_fired.append("EXCESSIVE_HYPHENS")
+    elif hyphen_count > 3:
+        risk += 20
+        signals_fired.append("MANY_HYPHENS")
+
+    # ------------------------------------------------------------------
+    # J) Subdomain length
+    # ------------------------------------------------------------------
+    hostname_parts = hostname.rsplit(".", 2)  # [subdomain, domain, tld] or fewer
+    if len(hostname_parts) > 2:
+        subdomain_part = hostname_parts[0]
+    else:
+        subdomain_part = ""
+    subdomain_len = len(subdomain_part)
+    if subdomain_len > 50:
+        risk += 35
+        signals_fired.append("EXCESSIVE_SUBDOMAIN_LENGTH")
+    elif subdomain_len > 30:
+        risk += 20
+        signals_fired.append("LONG_SUBDOMAIN")
+
     return {
         "url": url,
         "entropy": round(entropy, 4),

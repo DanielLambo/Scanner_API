@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # ML Model paths
     model_path: str = "ml/models/classifier.pkl"
     vectorizer_path: str = "ml/models/vectorizer.pkl"
+
+    # Database
+    database_url: str = "sqlite+aiosqlite:///./scanner_feedback.db"
     
     class Config:
         env_file = ".env"

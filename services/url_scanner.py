@@ -12,7 +12,7 @@ from typing import List, Dict, Optional
 from urllib.parse import urlparse
 
 from models.schemas import URLScanResult
-from utils.url_extractor import extract_urls
+from utils.url_extractor import extract_urls, extract_urls_with_evasion
 from config import settings
 from services.google_safe_browsing import gsb_service
 from services.openphish import openphish
@@ -106,15 +106,20 @@ class URLScanner:
         - Runs url_signals scoring on each canonical URL
         - Checks each canonical URL against the Redis cache;
           only cache misses are forwarded to VT / GSB / OpenPhish.
+        - Detects URL fragment tricks (#http) and data: URIs (Attack 4)
         """
-        urls = extract_urls(email_text)
+        urls, url_evasion_labels = extract_urls_with_evasion(email_text)
+
+        # data: URI — flag immediately with high risk score
+        data_uri_risk = 90.0 if "DATA_URI_DETECTED" in url_evasion_labels else 0.0
 
         if not urls:
             return URLScanResult(
                 urls_found=[],
                 malicious_count=0,
                 suspicious_count=0,
-                risk_score=0.0,
+                risk_score=data_uri_risk,
+                url_evasion_labels=url_evasion_labels if url_evasion_labels else None,
             )
 
         # Step 1: Canonicalize all URLs — returns dict of original -> result dict
@@ -230,16 +235,20 @@ class URLScanner:
             if r.get("gsb_flagged"):
                 all_gsb_flagged.add(original_url)
 
+        # Factor in data: URI risk
+        final_risk = max(max_risk, data_uri_risk)
+
         return URLScanResult(
             urls_found=urls,
             malicious_count=len(all_malicious),
             suspicious_count=all_suspicious_count,
-            risk_score=max_risk,
+            risk_score=final_risk,
             details=all_details if all_details else None,
             gsb_flagged_count=len(all_gsb_flagged),
             gsb_details=list(all_gsb_flagged) if all_gsb_flagged else None,
             canonical_urls=canonical_map,
             url_signals=all_url_signals if all_url_signals else None,
+            url_evasion_labels=url_evasion_labels if url_evasion_labels else None,
         )
 
     async def _scan_fresh(self, urls: List[str]) -> Dict[str, Dict]:
