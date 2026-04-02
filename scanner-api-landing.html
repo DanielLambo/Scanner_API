@@ -1010,6 +1010,77 @@ footer {
   color: rgba(255,255,255,0.3);
 }
 
+/* ── API STATUS ──────────────────────────────────── */
+#api-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-body);
+  padding: 5px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.green { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.2); }
+.status-dot.yellow { background: #f59e0b; box-shadow: 0 0 0 2px rgba(245,158,11,0.2); }
+.status-dot.gray { background: #9ca3af; box-shadow: 0 0 0 2px rgba(156,163,175,0.15); }
+
+/* ── DEMO SPINNER ────────────────────────────────── */
+.scan-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.demo-error-msg {
+  font-size: 13px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  display: none;
+}
+.demo-powered-note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 10px;
+}
+.example-btns {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.btn-example {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1.5px solid var(--crimson-tint2);
+  background: var(--crimson-tint);
+  color: var(--crimson);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-example:hover { background: var(--crimson-tint2); }
+
 /* ── ANIMATIONS ──────────────────────────────────── */
 .fade-up {
   opacity: 0;
@@ -1069,6 +1140,12 @@ footer {
       <li><a href="#api-reference">API Reference</a></li>
       <li><a href="#access">Access</a></li>
       <li><a href="#access" class="btn-nav">Request API Key</a></li>
+      <li>
+        <div id="api-status-indicator">
+          <span class="status-dot gray" id="status-dot"></span>
+          <span id="status-text">Checking…</span>
+        </div>
+      </li>
     </ul>
     <button class="hamburger" id="hamburger" aria-label="Toggle menu">
       <span></span><span></span><span></span>
@@ -1257,7 +1334,11 @@ footer {
     <div class="demo-grid fade-up">
       <div class="demo-form-card">
         <h3>Scan an email</h3>
-        <p class="form-desc">Submit email details to analyze with all six detection layers.</p>
+        <p class="form-desc">Submit email details to analyze with all detection layers.</p>
+        <div class="example-btns">
+          <button class="btn-example" id="btn-phishing-example">Phishing example</button>
+          <button class="btn-example" id="btn-safe-example">Safe example</button>
+        </div>
         <div class="form-group">
           <label for="demo-email">Sender Address</label>
           <input type="email" id="demo-email" placeholder="support@paypa1.com">
@@ -1278,33 +1359,34 @@ footer {
             <textarea id="demo-headers" rows="4" placeholder="Authentication-Results: spf=fail; dkim=fail; dmarc=fail&#10;From: PayPal Support &lt;support@paypa1.com&gt;&#10;Reply-To: attacker@gmail.com"></textarea>
           </div>
         </div>
-        <button class="btn-primary" style="width:100%; justify-content:center">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <button class="btn-primary" id="demo-scan-btn" style="width:100%; justify-content:center">
+          <svg id="demo-btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/>
             <path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>
           </svg>
-          Analyze Email
+          <span id="demo-btn-label">Analyze Email</span>
         </button>
-        <p style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:12px;">Demo shows static example result. Live scanning requires API key.</p>
+        <div class="demo-error-msg" id="demo-error-msg"></div>
+        <p class="demo-powered-note">Powered by Scanner API &nbsp;·&nbsp; Hosted on Render free tier — first request may take 30s to wake</p>
       </div>
 
-      <div class="demo-result-card">
+      <div class="demo-result-card" id="demo-result-card">
         <div class="result-header">
           <h3>Scan Result</h3>
-          <span class="badge-critical">CRITICAL</span>
+          <span class="badge-critical" id="result-badge">CRITICAL</span>
         </div>
         <div class="gauge-container">
           <div class="gauge-svg-wrap">
             <svg width="160" height="90" viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M15 85 A65 65 0 0 1 145 85" stroke="#f3f4f6" stroke-width="12" stroke-linecap="round" fill="none"/>
-              <path d="M15 85 A65 65 0 0 1 145 85" stroke="#c41230" stroke-width="12" stroke-linecap="round" fill="none"
+              <path id="gauge-arc" d="M15 85 A65 65 0 0 1 145 85" stroke="#c41230" stroke-width="12" stroke-linecap="round" fill="none"
                 stroke-dasharray="204" stroke-dashoffset="35" style="transition:stroke-dashoffset 1.2s ease"/>
-              <text x="80" y="78" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="34" fill="#0f0f0f">83</text>
+              <text id="gauge-score-text" x="80" y="78" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="34" fill="#0f0f0f">83</text>
               <text x="80" y="92" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="11" fill="#9ca3af">out of 100</text>
             </svg>
           </div>
         </div>
-        <div class="signal-bars">
+        <div class="signal-bars" id="result-signal-bars">
           <div class="signal-bar">
             <span class="signal-bar-name">Content Analysis</span>
             <div class="signal-bar-track"><div class="signal-bar-fill" style="width:98.6%"></div></div>
@@ -1336,7 +1418,7 @@ footer {
             <span class="signal-bar-score">60</span>
           </div>
         </div>
-        <div class="result-labels">
+        <div class="result-labels" id="result-labels">
           <span class="label-chip">Homoglyph Domain</span>
           <span class="label-chip">DMARC Fail</span>
           <span class="label-chip">Phishing Content</span>
@@ -1344,12 +1426,13 @@ footer {
         </div>
         <div class="result-recommendations">
           <h4>Recommendations</h4>
-          <ul>
+          <ul id="result-recommendations-list">
             <li>Do not click any links in this email</li>
             <li>This email failed DMARC authentication — sender domain is spoofed</li>
             <li>Display name impersonates PayPal but was not sent from their domain</li>
           </ul>
         </div>
+        <div id="result-confidence-note" style="font-size:12.5px;color:var(--text-muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none;"></div>
       </div>
     </div>
   </div>
@@ -1978,6 +2061,173 @@ function copyCode(btn) {
   toggle.addEventListener('click', function() {
     toggle.classList.toggle('open');
     area.classList.toggle('open');
+  });
+})();
+
+// ── HEALTH CHECK ──────────────────────────────────
+(function() {
+  var dot = document.getElementById('status-dot');
+  var text = document.getElementById('status-text');
+  fetch('https://scanner-api-st8w.onrender.com/health')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ml_model_loaded === true) {
+        dot.className = 'status-dot green';
+        text.textContent = 'API Online';
+      } else {
+        dot.className = 'status-dot yellow';
+        text.textContent = 'API Online \u00B7 ML model loading';
+      }
+    })
+    .catch(function() {
+      dot.className = 'status-dot gray';
+      text.textContent = 'API Warming Up';
+    });
+})();
+
+// ── EXAMPLE PREFILL ───────────────────────────────
+(function() {
+  document.getElementById('btn-phishing-example').addEventListener('click', function() {
+    document.getElementById('demo-email').value = 'support@paypa1.com';
+    document.getElementById('demo-body').value = 'Your PayPal account has been compromised. Verify immediately or it will be suspended.';
+  });
+  document.getElementById('btn-safe-example').addEventListener('click', function() {
+    document.getElementById('demo-email').value = 'newsletter@github.com';
+    document.getElementById('demo-body').value = 'Your weekly GitHub digest is ready. Check out trending repositories this week.';
+  });
+})();
+
+// ── LIVE DEMO SCAN ────────────────────────────────
+(function() {
+  var scanBtn = document.getElementById('demo-scan-btn');
+  var btnLabel = document.getElementById('demo-btn-label');
+  var btnIcon = document.getElementById('demo-btn-icon');
+  var errorMsg = document.getElementById('demo-error-msg');
+  var scanning = false;
+
+  function getRiskBadgeStyle(level) {
+    var map = {
+      'CRITICAL': '#fef2f2',
+      'HIGH': '#fff7ed',
+      'MEDIUM': '#fefce8',
+      'LOW': '#f0fdf4',
+      'SAFE': '#f0fdf4'
+    };
+    return map[level] || '#f3f4f6';
+  }
+
+  function getBarClass(score) {
+    if (score >= 70) return '';
+    if (score >= 35) return 'medium';
+    return 'low';
+  }
+
+  function scoreToOffset(score) {
+    // arc dasharray=204, full arc = score 100 → offset 0, score 0 → offset 204
+    return Math.round(204 - (score / 100) * 204);
+  }
+
+  function renderResult(data) {
+    var score = Math.round(data.scam_score || 0);
+    var level = data.risk_level || 'UNKNOWN';
+    var labels = data.labels || [];
+    var recs = data.recommendations || [];
+    var ca = data.content_analysis || {};
+
+    // Gauge
+    document.getElementById('gauge-score-text').textContent = score;
+    var arc = document.getElementById('gauge-arc');
+    arc.setAttribute('stroke-dashoffset', scoreToOffset(score));
+
+    // Badge
+    var badge = document.getElementById('result-badge');
+    badge.textContent = level;
+    badge.style.background = getRiskBadgeStyle(level);
+
+    // Signal bars — rebuild from available sub-scores
+    var barsHtml = '';
+    var signals = [];
+    if (ca.risk_score !== undefined) signals.push({ name: 'Content Analysis', score: ca.risk_score });
+    if (data.header_analysis && data.header_analysis.risk_score !== undefined) signals.push({ name: 'Header Analysis', score: data.header_analysis.risk_score });
+    if (data.url_analysis && data.url_analysis.risk_score !== undefined) signals.push({ name: 'URL Intelligence', score: data.url_analysis.risk_score });
+    if (data.safe_browsing && data.safe_browsing.risk_score !== undefined) signals.push({ name: 'Safe Browsing', score: data.safe_browsing.risk_score });
+    if (data.dnsbl && data.dnsbl.risk_score !== undefined) signals.push({ name: 'DNSBL', score: data.dnsbl.risk_score });
+    if (data.domain_age && data.domain_age.risk_score !== undefined) signals.push({ name: 'Domain Age', score: data.domain_age.risk_score });
+    if (data.email_verification && data.email_verification.risk_score !== undefined) signals.push({ name: 'Email Verification', score: data.email_verification.risk_score });
+
+    if (signals.length > 0) {
+      signals.forEach(function(s) {
+        var cls = getBarClass(s.score);
+        barsHtml += '<div class="signal-bar"><span class="signal-bar-name">' + s.name + '</span>' +
+          '<div class="signal-bar-track"><div class="signal-bar-fill ' + cls + '" style="width:' + s.score + '%"></div></div>' +
+          '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span></div>';
+      });
+      document.getElementById('result-signal-bars').innerHTML = barsHtml;
+    }
+
+    // Labels
+    var labelsEl = document.getElementById('result-labels');
+    if (labels.length > 0) {
+      labelsEl.innerHTML = labels.map(function(l) {
+        return '<span class="label-chip">' + l + '</span>';
+      }).join('');
+    }
+
+    // Recommendations
+    var recsList = document.getElementById('result-recommendations-list');
+    if (recs.length > 0) {
+      recsList.innerHTML = recs.map(function(r) { return '<li>' + r + '</li>'; }).join('');
+    }
+
+    // Confidence note
+    var confNote = document.getElementById('result-confidence-note');
+    if (ca.confidence !== undefined) {
+      confNote.style.display = 'block';
+      confNote.textContent = 'ML confidence: ' + Math.round(ca.confidence * 100) + '% \u00B7 Prediction: ' + (ca.prediction || (ca.is_phishing ? 'Phishing Email' : 'Safe Email'));
+    }
+  }
+
+  scanBtn.addEventListener('click', function() {
+    if (scanning) return;
+    var emailAddr = document.getElementById('demo-email').value.trim();
+    var emailText = document.getElementById('demo-body').value.trim();
+    var emailHeaders = document.getElementById('demo-headers').value.trim();
+    if (!emailAddr && !emailText) return;
+
+    scanning = true;
+    errorMsg.style.display = 'none';
+    btnIcon.outerHTML = '<span class="scan-spinner" id="demo-btn-icon"></span>';
+    btnLabel.textContent = 'Scanning…';
+    scanBtn.disabled = true;
+
+    var body = { email_address: emailAddr, email_text: emailText };
+    if (emailHeaders) body.email_headers = emailHeaders;
+
+    fetch('https://scanner-api-st8w.onrender.com/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      renderResult(data);
+    })
+    .catch(function() {
+      errorMsg.textContent = 'Scanner is warming up — Render free tier sleeps after inactivity. Try again in 30 seconds.';
+      errorMsg.style.display = 'block';
+    })
+    .finally(function() {
+      scanning = false;
+      var spinner = document.getElementById('demo-btn-icon');
+      if (spinner) {
+        spinner.outerHTML = '<svg id="demo-btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>';
+      }
+      btnLabel.textContent = 'Analyze Email';
+      scanBtn.disabled = false;
+    });
   });
 })();
 </script>

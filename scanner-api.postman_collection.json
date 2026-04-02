@@ -1,0 +1,293 @@
+{
+  "info": {
+    "name": "Scanner API",
+    "_postman_id": "scanner-api-collection-v1",
+    "description": "Postman collection for the Scanner API — phishing detection infrastructure built on peer-reviewed research.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://scanner-api-st8w.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "scan_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "description": "Returns service health status, version, and whether the ML model has been loaded.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Scanning",
+      "item": [
+        {
+          "name": "Full Scan — Phishing Example",
+          "description": "Runs a full scan (all detection layers) on a known phishing example using a homoglyph domain and failed authentication headers.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_address\": \"support@paypa1.com\",\n  \"email_text\": \"Your PayPal account has been compromised. Verify immediately or it will be suspended.\",\n  \"email_headers\": \"Authentication-Results: spf=fail; dkim=fail; dmarc=fail (p=REJECT)\\r\\nFrom: PayPal Support <support@paypa1.com>\\r\\nReply-To: attacker@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/scan",
+              "host": ["{{base_url}}"],
+              "path": ["api", "scan"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has scan_id\", () => pm.expect(pm.response.json().scan_id).to.exist);",
+                  "pm.test(\"Has scam_score\", () => pm.expect(pm.response.json().scam_score).to.be.a('number'));",
+                  "if (pm.response.json().scan_id) { pm.collectionVariables.set('scan_id', pm.response.json().scan_id); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Full Scan — Safe Example",
+          "description": "Runs a full scan on a known-safe email from GitHub newsletter to validate low risk scoring.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_address\": \"newsletter@github.com\",\n  \"email_text\": \"Your weekly GitHub digest is ready. Check out trending repositories this week.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/scan",
+              "host": ["{{base_url}}"],
+              "path": ["api", "scan"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Has scan_id\", () => pm.expect(pm.response.json().scan_id).to.exist);",
+                  "pm.test(\"Has scam_score\", () => pm.expect(pm.response.json().scam_score).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "URL Scan Only",
+          "description": "Runs URL-only scan — checks URLs in the email text against Safe Browsing, OpenPhish, DNSBL, and structural signal analysis.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_text\": \"Click here: https://testsafebrowsing.appspot.com/s/phishing.html\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/scan/urls",
+              "host": ["{{base_url}}"],
+              "path": ["api", "scan", "urls"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Content Analysis Only",
+          "description": "Runs ML content classification only — Sentence-BERT + calibrated ensemble inference, without URL or header checks.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email_text\": \"URGENT: Your account will be suspended. Click here immediately to verify your details.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/scan/content",
+              "host": ["{{base_url}}"],
+              "path": ["api", "scan", "content"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Feedback",
+      "item": [
+        {
+          "name": "Submit Feedback",
+          "description": "Submit a human verdict (TP, FP, TN, FN) for a completed scan. Used by the active learning loop to queue low-confidence samples for retraining.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scan_id\": \"{{scan_id}}\",\n  \"verdict\": \"TP\",\n  \"notes\": \"Confirmed phishing email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/feedback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "feedback"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Feedback Stats",
+          "description": "Returns aggregate feedback statistics — TP/FP/TN/FN counts, false positive rate, and feedback submission totals.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/feedback/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "feedback", "stats"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Active Learning Queue",
+          "description": "Returns scans queued for human review — low-confidence predictions that the active learning system has flagged for labeling.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/feedback/queue",
+              "host": ["{{base_url}}"],
+              "path": ["api", "feedback", "queue"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Status",
+      "item": [
+        {
+          "name": "OpenPhish Status",
+          "description": "Returns the current status of the OpenPhish community feed integration — last refresh time, URL count, and feed health.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/status/openphish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "status", "openphish"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "WHOIS Status",
+          "description": "Returns WHOIS service status — whether the domain age lookup service is available and the last successful query time.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/status/whois",
+              "host": ["{{base_url}}"],
+              "path": ["api", "status", "whois"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "URL Cache Status",
+          "description": "Returns URL scan cache statistics — cache size, hit rate, and TTL configuration for the URL analysis result cache.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/status/url-cache",
+              "host": ["{{base_url}}"],
+              "path": ["api", "status", "url-cache"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

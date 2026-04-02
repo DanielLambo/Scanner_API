@@ -1,401 +1,72 @@
-# Email Scanner Backend API
+# Scanner API
 
-A production-ready FastAPI backend service for detecting phishing and scam emails using multiple analysis methods.
+> Phishing detection infrastructure built on peer-reviewed research.
+> NSF Funded · AAMU Cybersecurity Lab · Published in Springer · DEF CON Las Vegas
 
-## 🎯 Features
+## Live API
+- Base URL: https://scanner-api-st8w.onrender.com
+- Docs: https://scanner-api-st8w.onrender.com/docs
 
-- **Email Address Verification** - Validates email addresses using Hunter.io API
-- **URL Scanning** - Detects malicious links using VirusTotal API
-- **Content Analysis** - ML-based phishing classification using Random Forest
-- **Unified Scoring** - Combines all methods into a single scam score (0-100)
-- **RESTful API** - Clean, well-documented endpoints
-- **API Authentication** - Secure API key-based authentication
-- **CORS Support** - Ready for frontend integration
-- **Auto-generated Docs** - OpenAPI/Swagger documentation
-
-## ⚠️ Deployment Status & Live Demo
-
-**This project is designed as a local-first backend service.**
-
-There is currently **no live public API deployment**. This is intentional:
-1. **Security & Quotas**: This API relies on third-party services (Hunter.io, VirusTotal) which require private API keys with strict rate limits. Hosting a public demo would expose these keys to abuse and depletion of free-tier quotas.
-2. **Local Execution**: The project provides a complete environment for you to run the scanner on your own machine using your own credentials.
-
-> **Note for Frontend Developers**: You **must** run this backend locally on your machine to test or develop any frontend applications. There is no remote base URL to connect to.
-
-All documentation below uses `http://localhost:8000` to reflect the local development environment.
-
-## 📋 Requirements
-
-- Python 3.8+
-- Hunter.io API key (for email verification)
-- VirusTotal API key (for URL scanning)
-- Phishing email dataset (for ML model training)
-
-## 🚀 Quick Start
-
-### 1. Installation
+## Quick Start
 
 ```bash
-# Clone or navigate to the project directory
-cd /Users/daniellambo/Downloads/Scanner_API
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 2. Configuration
-
-```bash
-# Copy environment template
-cp .env.template .env
-
-# Edit .env and add your API keys
-# Replace ## placeholders with actual values
-```
-
-**Required environment variables:**
-- `HUNTER_API_KEY` - Get from [hunter.io](https://hunter.io/api)
-- `VIRUSTOTAL_API_KEY` - Get from [virustotal.com](https://www.virustotal.com/)
-- `API_KEY` - Generate a secure random string for API authentication
-
-### 3. Train ML Model (Optional but Recommended)
-
-Download the phishing email dataset:
-- [Google Drive Link](https://drive.google.com/file/d/1f-qsFeoXt0i0H4yUbQuX5-oLcD_swzIY/view)
-- Or use your own CSV with columns: `Email Text`, `Email Type`
-
-```bash
-# Train the model
-python ml/train_model.py phishing_email.csv
-```
-
-This will create trained models in `ml/models/`:
-- `classifier.pkl` - Random Forest classifier
-- `vectorizer.pkl` - TF-IDF vectorizer
-
-### 4. Start the API Server
-
-```bash
-# Start with auto-reload (development)
-uvicorn app:app --reload
-
-# Or run directly
-python app.py
-```
-
-The local API server will be available at: `http://localhost:8000`
-
-## 📚 API Documentation
-
-### Interactive Docs
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### Endpoints
-
-#### Health Check
-```http
-GET /health
-```
-Returns service status and ML model availability.
-
-#### Complete Scan
-```http
-POST /api/scan
-Headers: X-API-Key: your_api_key
-Content-Type: application/json
-
-{
-  "email_address": "suspicious@example.com",
-  "email_text": "Click here to claim your prize: http://phishing-site.com"
-}
-```
-
-Returns comprehensive analysis with scam score (0-100) and risk level.
-
-#### Email Address Verification Only
-```http
-POST /api/scan/email-address
-Headers: X-API-Key: your_api_key
-Content-Type: application/json
-
-{
-  "email_address": "test@example.com"
-}
-```
-
-#### URL Scanning Only
-```http
-POST /api/scan/urls
-Headers: X-API-Key: your_api_key
-Content-Type: application/json
-
-{
-  "email_text": "Visit our site: http://example.com"
-}
-```
-
-#### Content Analysis Only
-```http
-POST /api/scan/content
-Headers: X-API-Key: your_api_key
-Content-Type: application/json
-
-{
-  "email_text": "Your account has been compromised. Click here immediately."
-}
-```
-
-## 📊 Example Response
-
-```json
-{
-  "scam_score": 78.5,
-  "risk_level": "HIGH",
-  "email_verification": {
-    "valid": false,
-    "score": 20,
-    "disposable": true,
-    "webmail": false,
-    "accept_all": false,
-    "gibberish": false,
-    "risk_score": 80.0
-  },
-  "url_scan": {
-    "urls_found": ["http://phishing-site.com"],
-    "malicious_count": 1,
-    "suspicious_count": 0,
-    "risk_score": 95.0
-  },
-  "content_analysis": {
-    "prediction": "Phishing Email",
-    "confidence": 0.92,
-    "risk_score": 92.0,
-    "is_phishing": true
-  }
-}
-```
-
-## 🔧 Configuration
-
-### Scoring Weights
-
-Adjust the weights for each analysis method in `.env`:
-
-```env
-SCORING_WEIGHTS_EMAIL=0.3    # Email verification weight
-SCORING_WEIGHTS_URL=0.4      # URL scanning weight
-SCORING_WEIGHTS_CONTENT=0.3  # Content analysis weight
-```
-
-Weights should sum to 1.0 for proper averaging.
-
-### Risk Levels
-
-Scam scores are categorized into risk levels:
-- **0-24**: LOW
-- **25-49**: MEDIUM
-- **50-74**: HIGH
-- **75-100**: CRITICAL
-
-## 🏗️ Project Structure
-
-```
-Scanner_API/
-├── app.py                      # Main FastAPI application
-├── config.py                   # Configuration management
-├── requirements.txt            # Python dependencies
-├── .env.template              # Environment variables template
-├── .gitignore                 # Git ignore patterns
-├── models/
-│   └── schemas.py             # Pydantic data models
-├── services/
-│   ├── email_verifier.py      # Hunter.io integration
-│   ├── url_scanner.py         # VirusTotal integration
-│   ├── content_analyzer.py    # ML classification
-│   └── score_calculator.py    # Unified scoring
-├── ml/
-│   ├── train_model.py         # Model training script
-│   └── model_loader.py        # Model loading utilities
-├── middleware/
-│   └── auth.py                # API key authentication
-└── utils/
-    └── url_extractor.py       # URL extraction utility
-```
-
-## 🧪 Testing
-
-### Using cURL
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Complete scan
-curl -X POST http://localhost:8000/api/scan \
-  -H "X-API-Key: your_api_key" \
+curl -X POST https://scanner-api-st8w.onrender.com/api/scan \
   -H "Content-Type: application/json" \
   -d '{
-    "email_address": "test@example.com",
-    "email_text": "Click here: http://example.com"
+    "email_address": "support@paypa1.com",
+    "email_text": "Your PayPal account has been compromised. Verify immediately.",
+    "email_headers": "Authentication-Results: spf=fail; dkim=fail; dmarc=fail"
   }'
 ```
 
-### Using Python
+## Detection Layers
 
-```python
-import requests
+| Layer | Method | Signal |
+|-------|--------|--------|
+| 1 | Google Safe Browsing | Known malicious URLs |
+| 2 | OpenPhish Feed | Community phishing URLs |
+| 3 | DNSBL | IP/domain blocklists (Spamhaus, SURBL, URIBL) |
+| 4 | ML Classifier | Sentence-BERT + calibrated ensemble |
+| 5 | Header Analysis | SPF/DKIM/DMARC, Reply-To mismatch |
+| 6 | URL Signals | Entropy, TLD rarity, homoglyph, digit ratio |
+| 7 | Homoglyph Detection | Unicode confusables + Levenshtein |
+| 8 | Domain Age | WHOIS registration date |
 
-API_URL = "http://localhost:8000/api/scan"
-API_KEY = "your_api_key"
+## Performance
 
-response = requests.post(
-    API_URL,
-    headers={"X-API-Key": API_KEY},
-    json={
-        "email_address": "suspicious@example.com",
-        "email_text": "Congratulations! You won $1,000,000!"
-    }
-)
+| Metric | Safe | Phishing | Macro Avg |
+|--------|------|----------|-----------|
+| Precision | 0.93 | 0.99 | 0.96 |
+| Recall | 0.99 | 0.93 | 0.96 |
+| F1 | 0.96 | 0.96 | 0.96 |
 
-print(response.json())
-```
+## Architecture
 
-## 🚦 Deployment Considerations
+The API receives an email (address + body + headers) and fans out to all 8 detection layers concurrently. Each layer returns a risk score (0–100). A weighted ensemble produces the final `scam_score`. Low-confidence scans are automatically queued for human review via the active learning loop.
 
-### Production Checklist
-
-- [ ] Set strong API keys in production `.env`
-- [ ] Configure CORS to allow only specific origins
-- [ ] Use HTTPS for all endpoints
-- [ ] Set up rate limiting (consider using `slowapi`)
-- [ ] Add logging and monitoring
-- [ ] Use a production ASGI server (Gunicorn + Uvicorn workers)
-- [ ] Consider caching for repeated scans
-- [ ] Set up error tracking (e.g., Sentry)
-
-### Production Server
+## Local Setup
 
 ```bash
-# Install Gunicorn
-pip install gunicorn
-
-# Run with multiple workers
-gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
+git clone https://github.com/DanielLambo/Scanner_API.git
+cd Scanner_API
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # add your GOOGLE_SAFE_BROWSING_KEY
+uvicorn app:app --reload
 ```
 
-## 🤝 Frontend & Web Extension Integration
-
-This API is optimized for easy integration with frontend applications and browser extensions (Chrome, Firefox, Edge).
-
-### 🚀 Quick Start with SDK
-
-> **Prerequisite**: Ensure the backend is running locally (`http://localhost:8000`) before starting your frontend.
-
-We provide a lightweight TypeScript client in the `frontend/` directory.
-
-1. **Copy types and client**: Copy `frontend/types.ts` and `frontend/client.ts` to your project.
-2. **Usage**:
-
-```typescript
-import { EmailScannerClient } from './client';
-
-const client = new EmailScannerClient('http://localhost:8000', 'your_api_key');
-
-const result = await client.scanEmail({
-  email_address: 'suspicious@example.com',
-  email_text: 'Urgent: Reset your password now!'
-});
-
-console.log(`Risk: ${result.risk_level} (${result.scam_score}/100)`);
+Train the model:
+```bash
+TOKENIZERS_PARALLELISM=false python3 ml/train_model.py phishing_train.csv
 ```
 
-### 🏷️ Using Labels & Recommendations
+## Research
 
-The API provides pre-processed `labels` and `recommendations` specifically for UI display:
+Developed at the Alabama A&M University Cybersecurity Research Lab with NSF support. Detection methodology peer-reviewed and published in Springer conference proceedings. System architecture presented at DEF CON, Las Vegas.
 
-- **`labels`**: Short strings (e.g., "Malicious Link", "High Risk Sender") perfect for badges or tags.
-- **`recommendations`**: Human-readable advice for the end-user.
+See [MODEL_CARD.md](MODEL_CARD.md) for full model documentation.
 
-```javascript
-// Example UI mapping
-const riskColors = {
-  'LOW': '#4CAF50',      // Green
-  'MEDIUM': '#FFC107',   // Yellow
-  'HIGH': '#FF9800',     // Orange
-  'CRITICAL': '#F44336'  // Red
-};
+## License
 
-// Use result.labels.map() to render badges
-// Use result.recommendations.map() to render an advice list
-```
-
-### 🌐 Web Extension Configuration
-
-When using this API in a web extension:
-
-#### 1. Permissions (`manifest.json`)
-Ensure your API host is allowed in your manifest:
-
-```json
-{
-  "permissions": [
-    "host_permissions": [
-      "http://localhost:8000/*"
-    ]
-  ]
-}
-```
-
-#### 2. CORS
-The API is configured with CORS support. In development, it allows all origins. For production, update `app.py` to include your extension's ID:
-
-```python
-# app.py
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["chrome-extension://your-extension-id"],
-    ...
-)
-```
-
-### 🛠️ Local Development
-
-If you are developing your frontend locally (e.g., React on localhost:3000), the API will work out of the box due to the current CORS settings.
-
-## 📝 License
-
-This project is open source and available for educational and commercial use.
-
-## 🐛 Troubleshooting
-
-### ML Model Not Available
-
-If you get "ML model not available" errors:
-1. Ensure you've trained the model: `python ml/train_model.py`
-2. Check that `ml/models/` directory contains the `.pkl` files
-3. Verify the dataset path is correct
-
-### API Key Errors
-
-- Ensure `.env` file exists and contains your API keys
-- Check that API keys are valid and not rate-limited
-- Verify `X-API-Key` header is included in requests
-
-### Import Errors
-
-- Make sure virtual environment is activated
-- Reinstall dependencies: `pip install -r requirements.txt`
-
-## 📧 Support
-
-For issues or questions, please check:
-- API documentation at `/docs`
-- Configuration in `.env.template`
-- Model training output for ML issues
+MIT
