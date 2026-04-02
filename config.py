@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     
     # ML Model paths
     model_path: str = "ml/models/classifier.pkl"
-    vectorizer_path: str = "ml/models/vectorizer.pkl"
+    encoder_path: str = "ml/models/encoder.pkl"
     
     class Config:
         env_file = ".env"
