@@ -55,6 +55,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize background services on startup."""
+    from ml.download_models import download_models_if_missing
+    download_models_if_missing()
     await openphish.initialize()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

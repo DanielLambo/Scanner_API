@@ -27,9 +27,8 @@ ENV/
 # ML Models and Data
 *.csv
 *.h5
-# Allow trained model files needed for deployment
-!ml/models/
-!ml/models/*.pkl
+ml/models/*.pkl
+# Keep encoder_name.txt (small text file)
 !ml/models/encoder_name.txt
 
 # Logs

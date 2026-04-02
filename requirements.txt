@@ -20,6 +20,7 @@ xgboost>=1.7.0
 lightgbm>=4.0.0
 shap>=0.43.0
 typing_extensions>=4.6.0
+huggingface_hub>=0.20.0
 
 # Environment management
 python-dotenv==1.0.0
