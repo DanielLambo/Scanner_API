@@ -55,6 +55,9 @@ class ContentAnalysisResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, description="Model confidence (0-1)")
     risk_score: float = Field(0.0, ge=0.0, le=100.0, description="Calculated risk score")
     is_phishing: bool = Field(description="True if classified as phishing")
+    ensemble_disagreement: float = Field(0.0, description="Max spread in phishing probability across models")
+    models_agree: bool = Field(True, description="True if all models agree (disagreement < 0.3)")
+    explanation: Optional[List[dict]] = Field(None, description="Top SHAP features driving the prediction")
 
 
 class HeaderAnalysisResult(BaseModel):

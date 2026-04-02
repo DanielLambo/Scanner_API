@@ -1,11 +1,15 @@
 """
-Content analysis service using TF-IDF + Logistic Regression.
+Content analysis service using Sentence-BERT + calibrated ensemble.
 Classifies email content as phishing or safe.
+Includes evasion detection (base64, CSS-hidden text, HTML comment injection).
 """
 import os
 import re
 import base64
-from typing import Tuple, List
+import pickle
+from typing import Tuple, List, Optional
+
+import numpy as np
 
 from models.schemas import ContentAnalysisResult
 from ml.model_loader import model_loader
@@ -180,20 +184,60 @@ def preprocess_text(text: str) -> Tuple[str, List[str]]:
 
 
 class ContentAnalyzer:
-    """TF-IDF based phishing content classifier"""
+    """Sentence-BERT + LR/XGB/LGBM ensemble phishing classifier."""
+
+    def __init__(self):
+        self._shap_explainer = None
+        self._load_model()
+
+    def _load_model(self):
+        model_loader.load_model(
+            encoder_name_path=settings.encoder_name_path,
+            clf_lr_path=settings.classifier_lr_path,
+            clf_xgb_path=settings.classifier_xgb_path,
+            clf_lgbm_path=settings.classifier_lgbm_path,
+        )
+        if os.path.exists(settings.shap_explainer_path):
+            try:
+                with open(settings.shap_explainer_path, "rb") as f:
+                    self._shap_explainer = pickle.load(f)
+            except Exception as e:
+                print(f"Warning: could not load SHAP explainer: {e}")
 
     def is_model_available(self) -> bool:
-        return (
-            os.path.exists(settings.model_path)
-            and os.path.exists(settings.vectorizer_path)
-        )
+        return model_loader.is_loaded()
+
+    def explain(self, text: str) -> List[dict]:
+        """
+        Return top-3 SHAP features driving the phishing prediction.
+
+        Returns:
+            [{"feature": "dim_42", "weight": 0.34}, ...]
+        """
+        if not self._shap_explainer or not model_loader.is_loaded():
+            return []
+        try:
+            embedding = model_loader.encode(text)
+            shap_vals = self._shap_explainer.shap_values(embedding)
+            # LinearExplainer on binary LR: (1, 384) or list[2 x (1, 384)]
+            if isinstance(shap_vals, list):
+                vals = shap_vals[1][0]  # positive (phishing) class
+            else:
+                vals = shap_vals[0]
+            top_indices = np.argsort(np.abs(vals))[-3:][::-1]
+            return [
+                {"feature": f"dim_{int(i)}", "weight": float(vals[i])}
+                for i in top_indices
+            ]
+        except Exception:
+            return []
 
     def analyze_content(self, email_text: str) -> Tuple[ContentAnalysisResult, List[str]]:
         """
-        Preprocess and classify email text as phishing or safe.
+        Preprocess and classify email text using the calibrated ensemble.
 
         Runs preprocess_text() first to detect evasion techniques, then feeds
-        the cleaned text to the ML model.
+        the cleaned text to the ensemble model.
 
         Returns:
             (ContentAnalysisResult, evasion_labels)
@@ -209,32 +253,33 @@ class ContentAnalyzer:
                 is_phishing=False,
             ), evasion_labels
 
-        model, vectorizer = model_loader.load_model(
-            settings.model_path, settings.vectorizer_path
-        )
-        if model is None or vectorizer is None:
-            return ContentAnalysisResult(
-                prediction="Model Not Available",
-                confidence=0.0,
-                risk_score=0.0,
-                is_phishing=False,
-            ), evasion_labels
-
         try:
-            # TF-IDF transform → predict_proba on cleaned text
-            features = vectorizer.transform([cleaned_text])
-            proba = model.predict_proba(features)[0]
+            embedding = model_loader.encode(cleaned_text)
 
-            # index 1 = phishing class
-            phishing_probability = float(proba[1])
+            # Per-model phishing probabilities
+            individual = model_loader.individual_probas(embedding)
+            phishing_probs = [float(p[0, 1]) for p in individual]
+
+            # Soft-vote ensemble
+            avg_proba = model_loader.ensemble_predict_proba(embedding)
+            phishing_probability = float(avg_proba[0, 1])
             risk_score = phishing_probability * 100.0
             is_phishing = phishing_probability >= 0.5
 
+            # Disagreement across models
+            disagreement = float(max(phishing_probs) - min(phishing_probs))
+            models_agree = disagreement < 0.3
+
+            explanation = self.explain(cleaned_text) or None
+
             return ContentAnalysisResult(
                 prediction="Phishing Email" if is_phishing else "Safe Email",
-                confidence=phishing_probability if is_phishing else float(proba[0]),
+                confidence=phishing_probability if is_phishing else float(avg_proba[0, 0]),
                 risk_score=risk_score,
                 is_phishing=is_phishing,
+                ensemble_disagreement=disagreement,
+                models_agree=models_agree,
+                explanation=explanation,
             ), evasion_labels
 
         except Exception as e:
