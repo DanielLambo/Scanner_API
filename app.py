@@ -57,6 +57,8 @@ async def startup_event():
     """Initialize background services on startup."""
     from ml.download_models import download_models_if_missing
     download_models_if_missing()
+    # Reload model now that files are present (no-op if already loaded)
+    content_analyzer._load_model()
     await openphish.initialize()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

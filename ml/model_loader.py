@@ -46,7 +46,6 @@ class ModelLoader:
         """
         if self._loaded:
             return True
-
         self._full_ensemble = full_ensemble
 
         try:

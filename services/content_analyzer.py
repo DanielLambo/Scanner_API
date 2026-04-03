@@ -198,7 +198,7 @@ class ContentAnalyzer:
             clf_lgbm_path=settings.classifier_lgbm_path,
             full_ensemble=settings.full_ensemble,
         )
-        if settings.full_ensemble and os.path.exists(settings.shap_explainer_path):
+        if model_loader.is_loaded() and settings.full_ensemble and os.path.exists(settings.shap_explainer_path):
             try:
                 with open(settings.shap_explainer_path, "rb") as f:
                     self._shap_explainer = pickle.load(f)
