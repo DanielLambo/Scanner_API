@@ -2071,23 +2071,17 @@ function copyCode(btn) {
   fetch('https://scanner-api-st8w.onrender.com/health')
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.status === 'healthy' && data.ml_model_loaded === true) {
+      if (data.ml_model_loaded === true) {
         dot.className = 'status-dot green';
         text.textContent = 'API Online';
-      } else if (data.status === 'healthy') {
-        dot.className = 'status-dot yellow';
-        text.textContent = 'API Online \u00B7 ML loading';
       } else {
-        // API responded but reports unhealthy — show warming up
         dot.className = 'status-dot yellow';
-        text.textContent = 'API Warming Up';
+        text.textContent = 'API Online \u00B7 ML model loading';
       }
     })
     .catch(function() {
-      // CORS error, network error, or timeout — don't block the user
-      // Just show unknown status and let them try the form directly
       dot.className = 'status-dot gray';
-      text.textContent = 'Status Unknown';
+      text.textContent = 'API Warming Up';
     });
 })();
 

@@ -45,7 +45,11 @@ app = FastAPI(
 # CORS configuration for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=[
+        "https://phishnet.pages.dev",
+        "http://localhost:3000",
+        "http://localhost:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
