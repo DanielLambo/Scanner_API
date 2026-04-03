@@ -14,20 +14,21 @@ from services.score_calculator import score_calculator
 
 def _email_result(risk_score=0.0) -> EmailVerificationResult:
     return EmailVerificationResult(
-        valid=True,
-        score=50.0,
         risk_score=risk_score,
     )
 
 
-def _url_result(risk_score=0.0) -> URLScanResult:
-    return URLScanResult(risk_score=risk_score)
+def _url_result(risk_score=0.0, urls_found=None) -> URLScanResult:
+    return URLScanResult(
+        risk_score=risk_score,
+        urls_found=urls_found or ["http://example.com"],
+    )
 
 
-def _content_result(risk_score=0.0, is_phishing=False) -> ContentAnalysisResult:
+def _content_result(risk_score=0.0, is_phishing=False, confidence=None) -> ContentAnalysisResult:
     return ContentAnalysisResult(
         prediction="Phishing Email" if is_phishing else "Safe Email",
-        confidence=risk_score / 100.0,
+        confidence=confidence if confidence is not None else (risk_score / 100.0 if risk_score > 0 else 1.0),
         risk_score=risk_score,
         is_phishing=is_phishing,
     )
@@ -38,14 +39,14 @@ def _content_result(risk_score=0.0, is_phishing=False) -> ContentAnalysisResult:
 # ---------------------------------------------------------------------------
 
 def test_score_calculator_weights():
-    """Email weight=0.30; with only email at 100, score should be 100 (sole contributor)."""
+    """With email=100, url=0, content=0 (high-conf), score should reflect proportional weighting."""
     result = score_calculator.calculate_score(
         email_result=_email_result(risk_score=100),
         url_result=_url_result(risk_score=0),
-        content_result=_content_result(risk_score=0),
+        content_result=_content_result(risk_score=0, confidence=1.0),
     )
-    # weighted avg: (100*0.3 + 0*0.4 + 0*0.3) / 1.0 = 30
-    assert 25 <= result.scam_score <= 35
+    # email=0.25*100=25, url=0.45*0=0, content=0.30*0=0 → 25/1.0=25
+    assert 20 <= result.scam_score <= 30
 
 
 # ---------------------------------------------------------------------------
@@ -61,14 +62,14 @@ def test_risk_level_low():
 
 def test_risk_level_medium():
     result = score_calculator.calculate_score(
-        content_result=_content_result(risk_score=35),
+        content_result=_content_result(risk_score=40, confidence=0.95),
     )
     assert result.risk_level == "MEDIUM"
 
 
 def test_risk_level_high():
     result = score_calculator.calculate_score(
-        content_result=_content_result(risk_score=65),
+        content_result=_content_result(risk_score=65, confidence=0.95),
     )
     assert result.risk_level == "HIGH"
 
@@ -77,7 +78,7 @@ def test_risk_level_critical():
     result = score_calculator.calculate_score(
         email_result=_email_result(risk_score=100),
         url_result=_url_result(risk_score=100),
-        content_result=_content_result(risk_score=100),
+        content_result=_content_result(risk_score=100, is_phishing=True, confidence=0.99),
     )
     assert result.risk_level == "CRITICAL"
 

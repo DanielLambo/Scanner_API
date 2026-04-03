@@ -15,12 +15,22 @@ from config import settings
 
 class ScoreCalculator:
     """Unified scoring system for all scan results"""
-    
-    def __init__(self):
-        self.weight_email = settings.scoring_weights_email
-        self.weight_url = settings.scoring_weights_url
-        self.weight_content = settings.scoring_weights_content
-    
+
+    # Base weights (redistributed proportionally when a service is absent)
+    W_EMAIL = 0.25
+    W_URL = 0.45
+    W_CONTENT = 0.30
+    W_HEADERS = 0.25
+
+    def _confidence_gated_weight(self, content_result: ContentAnalysisResult, base: float) -> float:
+        """Scale content weight by ML confidence to dampen noisy predictions."""
+        conf = content_result.confidence
+        if conf > 0.90:
+            return base          # full weight — model is very confident
+        if conf > 0.75:
+            return base * 0.40   # reduced — moderate confidence
+        return base * 0.20       # minimal — model is guessing
+
     def calculate_score(
         self,
         email_result: Optional[EmailVerificationResult] = None,
@@ -31,56 +41,32 @@ class ScoreCalculator:
         evasion_labels: Optional[List[str]] = None,
     ) -> CompleteScanResponse:
         """
-        Calculate unified scam score from all results
+        Calculate unified scam score from all results.
 
-        Args:
-            email_result: Email verification result
-            url_result: URL scanning result
-            content_result: Content analysis result
-            dnsbl_result: DNSBL blocklist result
-            header_analysis: Raw header analysis result
-
-        Returns:
-            CompleteScanResponse with overall score and risk level
+        Only services that actually returned a result contribute to the
+        weighted average; absent services are excluded and remaining weights
+        are redistributed proportionally.
         """
-        total_score = 0.0
-        total_weight = 0.0
+        # Build (weight, score) pairs for each present service
+        components: list[tuple[float, float]] = []
 
-        # Choose weight set depending on whether headers are present
-        if header_analysis is not None:
-            w_email   = 0.20
-            w_url     = 0.30
-            w_content = 0.25
-            w_headers = 0.25
-        else:
-            w_email   = self.weight_email    # 0.30
-            w_url     = self.weight_url      # 0.40
-            w_content = self.weight_content  # 0.30
-            w_headers = 0.0
-
-        # Add email verification score
         if email_result is not None:
-            total_score += email_result.risk_score * w_email
-            total_weight += w_email
+            components.append((self.W_EMAIL, email_result.risk_score))
 
-        # Add URL scanning score
-        if url_result is not None:
-            total_score += url_result.risk_score * w_url
-            total_weight += w_url
+        if url_result is not None and url_result.urls_found:
+            components.append((self.W_URL, url_result.risk_score))
 
-        # Add content analysis score
         if content_result is not None:
-            total_score += content_result.risk_score * w_content
-            total_weight += w_content
+            w = self._confidence_gated_weight(content_result, self.W_CONTENT)
+            components.append((w, content_result.risk_score))
 
-        # Add header analysis score
         if header_analysis is not None:
-            total_score += header_analysis.risk_score * w_headers
-            total_weight += w_headers
+            components.append((self.W_HEADERS, header_analysis.risk_score))
 
-        # Calculate weighted average
-        if total_weight > 0:
-            scam_score = total_score / total_weight
+        # Weighted average — proportional redistribution is automatic
+        raw_weight = sum(w for w, _ in components)
+        if raw_weight > 0:
+            scam_score = sum(w * s for w, s in components) / raw_weight
         else:
             scam_score = 0.0
 
@@ -129,10 +115,10 @@ class ScoreCalculator:
         labels = []
 
         if email_result:
-            if not email_result.valid:
-                labels.append("Invalid Sender")
-            if email_result.disposable:
-                labels.append("Disposable Email")
+            if email_result.homoglyph_detected:
+                labels.append("Homoglyph Domain")
+            if email_result.domain_age_risk > 70:
+                labels.append("New Domain")
             if email_result.risk_score > 70:
                 labels.append("High Risk Sender")
 
@@ -174,8 +160,8 @@ class ScoreCalculator:
             recs.append("Do not click any links or download attachments from this email.")
             recs.append("Mark this email as spam or report it to your IT department.")
 
-        if email_result and (not email_result.valid or email_result.disposable):
-            recs.append("The sender's email address looks suspicious or temporary.")
+        if email_result and email_result.homoglyph_detected:
+            recs.append("The sender domain looks like a spoofed version of a well-known brand.")
 
         if url_result and url_result.malicious_count > 0:
             recs.append(f"We found {url_result.malicious_count} malicious link(s). Avoid interacting with them.")
@@ -221,7 +207,7 @@ class ScoreCalculator:
             return "CRITICAL"
         elif score >= 50:
             return "HIGH"
-        elif score >= 25:
+        elif score >= 30:
             return "MEDIUM"
         else:
             return "LOW"

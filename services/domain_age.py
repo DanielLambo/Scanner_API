@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 # Domains we trust implicitly — skip WHOIS to save time
 SAFE_DOMAINS = {
     "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
-    "apple.com", "google.com", "microsoft.com",
+    "apple.com", "google.com", "microsoft.com", "github.com",
+    "amazon.com", "facebook.com", "twitter.com", "linkedin.com",
+    "netflix.com", "paypal.com", "icloud.com", "live.com",
+    "aol.com", "protonmail.com", "zoho.com",
 }
 
 # Age → risk score thresholds (days)

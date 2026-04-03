@@ -73,8 +73,6 @@ def test_url_signals_safe_domain():
 def test_homoglyph_paypal():
     from services.homoglyph import check_domain
     result = check_domain("paypa1.com")
-    # paypa1.com - '1' is not in CONFUSABLES (removed to prevent FP),
-    # but Levenshtein distance from paypal.com is 1 char so should match
     assert result["is_homoglyph"] is True
     assert result["matched_domain"] == "paypal.com"
 
@@ -179,62 +177,27 @@ def test_evasion_html_comment():
 
 
 # ---------------------------------------------------------------------------
-# EmailVerifier — Hunter.io integration
+# EmailVerifier — domain age + homoglyph
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_email_verifier_valid_response(monkeypatch):
-    """Hunter.io returns a deliverable result — valid=True, score=90."""
-    monkeypatch.setattr("config.settings.hunter_api_key", "fake-key-for-test")
-
-    mock_response = MagicMock()
-    mock_response.json.return_value = {
-        "data": {
-            "result": "deliverable",
-            "score": 90,
-            "disposable": False,
-            "gibberish": False,
-            "accept_all": False,
-            "webmail": True,
-        }
-    }
-    mock_response.raise_for_status = MagicMock()
-
-    with patch("requests.get", return_value=mock_response):
-        from services.email_verifier import EmailVerifier
-        verifier = EmailVerifier()
-        verifier.api_key = "fake-key-for-test"
-        result = await verifier.verify_email("test@example.com")
-
-    assert result is not None
-    assert result.valid is True or result.score == 90
+async def test_email_verifier_safe_domain():
+    """Well-known domain should produce low risk_score."""
+    from services.email_verifier import EmailVerifier
+    verifier = EmailVerifier()
+    result = await verifier.verify_email("test@gmail.com")
+    assert result.risk_score < 50
+    assert result.homoglyph_detected is False
 
 
 @pytest.mark.asyncio
-async def test_email_verifier_disposable(monkeypatch):
-    """Hunter.io returns a disposable/undeliverable result — risk_score > 50."""
-    monkeypatch.setattr("config.settings.hunter_api_key", "fake-key-for-test")
-
-    mock_response = MagicMock()
-    mock_response.json.return_value = {
-        "data": {
-            "result": "undeliverable",
-            "score": 10,
-            "disposable": True,
-            "gibberish": True,
-            "accept_all": False,
-            "webmail": False,
-        }
-    }
-    mock_response.raise_for_status = MagicMock()
-
-    with patch("requests.get", return_value=mock_response):
-        from services.email_verifier import EmailVerifier
-        verifier = EmailVerifier()
-        verifier.api_key = "fake-key-for-test"
-        result = await verifier.verify_email("disposable@throwaway.com")
-
-    assert result.disposable is True or result.risk_score > 50
+async def test_email_verifier_homoglyph():
+    """Homoglyph domain should produce high risk_score."""
+    from services.email_verifier import EmailVerifier
+    verifier = EmailVerifier()
+    result = await verifier.verify_email("support@paypa1.com")
+    assert result.homoglyph_detected is True
+    assert result.risk_score >= 90
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +296,6 @@ async def test_max_hops_respected():
         result = await canonicalize_url(hops[0])
 
     assert len(result["redirect_chain"]) <= 6
-    # No infinite loop — just checking it returns
     assert result["canonical_url"] is not None
 
 
@@ -441,10 +403,7 @@ async def test_url_scanner_ip_address_url():
          patch("services.url_scanner.gsb_service.check_urls", new_callable=AsyncMock,
                return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}), \
          patch("services.url_scanner.openphish.check_urls",
-               return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}), \
-         patch.object(url_scanner, "_scan_urls_vt",
-                      return_value={"malicious_count": 0, "suspicious_count": 0,
-                                    "risk_score": 0.0, "details": []}):
+               return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}):
         result = await url_scanner.scan_urls("Visit http://192.168.1.100/login now")
 
     assert any("192.168.1.100" in u for u in result.urls_found)
@@ -469,10 +428,7 @@ async def test_url_scanner_deduplication():
          patch("services.url_scanner.gsb_service.check_urls", new_callable=AsyncMock,
                return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}), \
          patch("services.url_scanner.openphish.check_urls",
-               return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}), \
-         patch.object(url_scanner, "_scan_urls_vt",
-                      return_value={"malicious_count": 0, "suspicious_count": 0,
-                                    "risk_score": 0.0, "details": []}):
+               return_value={"flagged_urls": [], "clean_urls": [], "risk_score": 0}):
         result = await url_scanner.scan_urls(
             "Click http://example.xyz http://example.xyz http://example.xyz"
         )

@@ -1370,7 +1370,7 @@ footer {
         <p class="demo-powered-note">Powered by Scanner API &nbsp;·&nbsp; Hosted on Render free tier — first request may take 30s to wake</p>
       </div>
 
-      <div class="demo-result-card" id="demo-result-card">
+      <div class="demo-result-card" id="demo-result-card" style="display:none">
         <div class="result-header">
           <h3>Scan Result</h3>
           <span class="badge-critical" id="result-badge">CRITICAL</span>
@@ -2113,13 +2113,19 @@ function copyCode(btn) {
 
   function getRiskBadgeStyle(level) {
     var map = {
-      'CRITICAL': '#fef2f2',
-      'HIGH': '#fff7ed',
-      'MEDIUM': '#fefce8',
-      'LOW': '#f0fdf4',
-      'SAFE': '#f0fdf4'
+      'CRITICAL': { bg: '#fef2f2', color: '#c41230', border: '#fee2e2' },
+      'HIGH':     { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
+      'MEDIUM':   { bg: '#fefce8', color: '#a16207', border: '#fef08a' },
+      'LOW':      { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }
     };
-    return map[level] || '#f3f4f6';
+    return map[level] || { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' };
+  }
+
+  function getGaugeColor(score) {
+    if (score >= 75) return '#c41230';
+    if (score >= 50) return '#c2410c';
+    if (score >= 25) return '#f59e0b';
+    return '#10b981';
   }
 
   function getBarClass(score) {
@@ -2129,7 +2135,6 @@ function copyCode(btn) {
   }
 
   function scoreToOffset(score) {
-    // arc dasharray=204, full arc = score 100 → offset 0, score 0 → offset 204
     return Math.round(204 - (score / 100) * 204);
   }
 
@@ -2140,26 +2145,32 @@ function copyCode(btn) {
     var recs = data.recommendations || [];
     var ca = data.content_analysis || {};
 
-    // Gauge
+    // Show result card
+    document.getElementById('demo-result-card').style.display = 'block';
+
+    // Gauge — score + color
     document.getElementById('gauge-score-text').textContent = score;
     var arc = document.getElementById('gauge-arc');
     arc.setAttribute('stroke-dashoffset', scoreToOffset(score));
+    arc.setAttribute('stroke', getGaugeColor(score));
 
-    // Badge
+    // Badge — style by risk level
     var badge = document.getElementById('result-badge');
+    var badgeStyle = getRiskBadgeStyle(level);
     badge.textContent = level;
-    badge.style.background = getRiskBadgeStyle(level);
+    badge.style.background = badgeStyle.bg;
+    badge.style.color = badgeStyle.color;
+    badge.style.borderColor = badgeStyle.border;
 
-    // Signal bars — rebuild from available sub-scores
+    // Signal bars — use actual API response field names
     var barsHtml = '';
     var signals = [];
     if (ca.risk_score !== undefined) signals.push({ name: 'Content Analysis', score: ca.risk_score });
-    if (data.header_analysis && data.header_analysis.risk_score !== undefined) signals.push({ name: 'Header Analysis', score: data.header_analysis.risk_score });
-    if (data.url_analysis && data.url_analysis.risk_score !== undefined) signals.push({ name: 'URL Intelligence', score: data.url_analysis.risk_score });
-    if (data.safe_browsing && data.safe_browsing.risk_score !== undefined) signals.push({ name: 'Safe Browsing', score: data.safe_browsing.risk_score });
-    if (data.dnsbl && data.dnsbl.risk_score !== undefined) signals.push({ name: 'DNSBL', score: data.dnsbl.risk_score });
-    if (data.domain_age && data.domain_age.risk_score !== undefined) signals.push({ name: 'Domain Age', score: data.domain_age.risk_score });
     if (data.email_verification && data.email_verification.risk_score !== undefined) signals.push({ name: 'Email Verification', score: data.email_verification.risk_score });
+    if (data.url_scan && data.url_scan.risk_score !== undefined) signals.push({ name: 'URL Intelligence', score: data.url_scan.risk_score });
+    if (data.header_analysis && data.header_analysis.risk_score !== undefined) signals.push({ name: 'Header Analysis', score: data.header_analysis.risk_score });
+    if (data.dnsbl_result && data.dnsbl_result.risk_score !== undefined) signals.push({ name: 'DNSBL', score: data.dnsbl_result.risk_score });
+    if (data.email_verification && data.email_verification.domain_age_risk !== undefined && data.email_verification.domain_age_risk > 0) signals.push({ name: 'Domain Age', score: data.email_verification.domain_age_risk });
 
     if (signals.length > 0) {
       signals.forEach(function(s) {
@@ -2169,6 +2180,8 @@ function copyCode(btn) {
           '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span></div>';
       });
       document.getElementById('result-signal-bars').innerHTML = barsHtml;
+    } else {
+      document.getElementById('result-signal-bars').innerHTML = '<p style="font-size:12.5px;color:var(--text-muted)">No signal data available</p>';
     }
 
     // Labels
@@ -2177,6 +2190,8 @@ function copyCode(btn) {
       labelsEl.innerHTML = labels.map(function(l) {
         return '<span class="label-chip">' + l + '</span>';
       }).join('');
+    } else {
+      labelsEl.innerHTML = '';
     }
 
     // Recommendations
@@ -2190,6 +2205,8 @@ function copyCode(btn) {
     if (ca.confidence !== undefined) {
       confNote.style.display = 'block';
       confNote.textContent = 'ML confidence: ' + Math.round(ca.confidence * 100) + '% \u00B7 Prediction: ' + (ca.prediction || (ca.is_phishing ? 'Phishing Email' : 'Safe Email'));
+    } else {
+      confNote.style.display = 'none';
     }
   }
 
@@ -2211,19 +2228,26 @@ function copyCode(btn) {
 
     fetch('https://scanner-api-st8w.onrender.com/api/scan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': 'phishingisevil'
+      },
       body: JSON.stringify(body)
     })
     .then(function(r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); });
       return r.json();
     })
     .then(function(data) {
       renderResult(data);
     })
-    .catch(function() {
-      errorMsg.textContent = 'Scanner is warming up — Render free tier sleeps after inactivity. Try again in 30 seconds.';
+    .catch(function(err) {
+      var msg = err && err.message && err.message.indexOf('HTTP') === 0
+        ? 'Scan failed: ' + err.message
+        : 'Scanner is warming up — Render free tier sleeps after inactivity. Try again in 30 seconds.';
+      errorMsg.textContent = msg;
       errorMsg.style.display = 'block';
+      console.error('Scan error:', err);
     })
     .finally(function() {
       scanning = false;

@@ -108,32 +108,6 @@ def mock_gsb_clean():
 
 
 @pytest.fixture
-def mock_hunter_valid():
-    with respx.mock:
-        respx.get(url__startswith="https://api.hunter.io/v2/email-verifier").mock(
-            return_value=httpx.Response(200, json={
-                "data": {"result": "deliverable", "score": 90,
-                         "disposable": False, "gibberish": False,
-                         "accept_all": False, "webmail": True}
-            })
-        )
-        yield
-
-
-@pytest.fixture
-def mock_hunter_disposable():
-    with respx.mock:
-        respx.get(url__startswith="https://api.hunter.io/v2/email-verifier").mock(
-            return_value=httpx.Response(200, json={
-                "data": {"result": "undeliverable", "score": 10,
-                         "disposable": True, "gibberish": True,
-                         "accept_all": False, "webmail": False}
-            })
-        )
-        yield
-
-
-@pytest.fixture
 def mock_redirect():
     with respx.mock:
         respx.get("https://bit.ly/test123").mock(

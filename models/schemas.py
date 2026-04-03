@@ -21,18 +21,12 @@ class EmailScanRequest(BaseModel):
 
 
 class EmailVerificationResult(BaseModel):
-    """Result from Hunter.io email verification"""
-    valid: bool = Field(description="Whether email is valid")
-    score: float = Field(0.0, ge=0.0, le=100.0, description="Hunter.io quality score")
-    disposable: bool = Field(False, description="Is disposable email")
-    webmail: bool = Field(False, description="Is webmail provider")
-    accept_all: bool = Field(False, description="Server accepts all emails")
-    gibberish: bool = Field(False, description="Email appears gibberish")
+    """Result from domain age + homoglyph email verification"""
     risk_score: float = Field(0.0, ge=0.0, le=100.0, description="Calculated risk score")
     domain_age_days: Optional[int] = None
     domain_age_risk: float = 0.0
     homoglyph_detected: bool = False
-    details: Optional[Dict] = Field(None, description="Additional details from Hunter.io")
+    details: Optional[Dict] = Field(None, description="Additional details")
 
 
 class URLScanResult(BaseModel):

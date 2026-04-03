@@ -1,19 +1,16 @@
 """
-URL scanning service using VirusTotal, Google Safe Browsing, and OpenPhish.
+URL scanning service using Google Safe Browsing, OpenPhish, and url_signals.
 Individual URL results are cached in Redis to avoid redundant scans.
 """
 import asyncio
-import base64
 import hashlib
 import json
 import logging
-import requests
 from typing import List, Dict, Optional
 from urllib.parse import urlparse
 
 from models.schemas import URLScanResult
 from utils.url_extractor import extract_urls, extract_urls_with_evasion
-from config import settings
 from services.google_safe_browsing import gsb_service
 from services.openphish import openphish
 from services.canonicalizer import canonicalize_urls
@@ -91,12 +88,7 @@ _url_cache = URLCache()
 
 
 class URLScanner:
-    """URL scanning service combining VirusTotal, Google Safe Browsing, and OpenPhish"""
-
-    def __init__(self):
-        self.api_key = settings.virustotal_api_key
-        self.api_url = settings.virustotal_api_url
-        self.timeout = settings.external_api_timeout
+    """URL scanning service combining Google Safe Browsing, OpenPhish, and url_signals."""
 
     async def scan_urls(self, email_text: str) -> URLScanResult:
         """
@@ -105,7 +97,7 @@ class URLScanner:
         - Checks each canonical domain for homoglyphs
         - Runs url_signals scoring on each canonical URL
         - Checks each canonical URL against the Redis cache;
-          only cache misses are forwarded to VT / GSB / OpenPhish.
+          only cache misses are forwarded to GSB / OpenPhish.
         - Detects URL fragment tricks (#http) and data: URIs (Attack 4)
         """
         urls, url_evasion_labels = extract_urls_with_evasion(email_text)
@@ -122,8 +114,8 @@ class URLScanner:
                 url_evasion_labels=url_evasion_labels if url_evasion_labels else None,
             )
 
-        # Step 1: Canonicalize all URLs — returns dict of original -> result dict
-        canonical_map = await canonicalize_urls(urls)  # original -> {canonical_url, was_shortened, redirect_chain}
+        # Step 1: Canonicalize all URLs
+        canonical_map = await canonicalize_urls(urls)
 
         # Step 2: Homoglyph detection on canonical domains
         homoglyph_malicious: set = set()
@@ -143,7 +135,7 @@ class URLScanner:
         # Use canonical URLs for downstream checks
         canonical_urls_list = [v["canonical_url"] for v in canonical_map.values()]
 
-        # Step 3: Run url_signals scoring concurrently with cache lookups
+        # Step 3: Run url_signals scoring
         signals_map: Dict[str, dict] = {}
         for canon_url in canonical_urls_list:
             signals_map[canon_url] = score_url(canon_url)
@@ -165,7 +157,6 @@ class URLScanner:
                 len(cached_results), len(urls_to_scan), _url_cache.hits,
             )
             fresh = await self._scan_fresh(urls_to_scan)
-            # Write each URL result to cache
             for url, result in fresh.items():
                 await _url_cache.set(url, result)
             cached_results.update(fresh)
@@ -186,7 +177,6 @@ class URLScanner:
             canonical_url = canon_result.get("canonical_url", original_url) if isinstance(canon_result, dict) else original_url
             r = cached_results.get(canonical_url, {})
 
-            # url_signals result for this canonical URL
             sig = signals_map.get(canonical_url, {})
             sig_risk = sig.get("risk_score", 0.0)
 
@@ -210,8 +200,6 @@ class URLScanner:
 
             # Build per-URL detail entry
             detail_entry: dict = {}
-            if r.get("vt_detail"):
-                detail_entry.update(r["vt_detail"])
 
             detail_entry["original_url"] = original_url
             detail_entry["canonical_url"] = canonical_url
@@ -253,11 +241,10 @@ class URLScanner:
 
     async def _scan_fresh(self, urls: List[str]) -> Dict[str, Dict]:
         """
-        Run VT + GSB + OpenPhish for a list of uncached URLs.
+        Run GSB + OpenPhish for a list of uncached URLs.
         Returns a per-URL result dict ready for caching.
         """
-        vt_data, gsb_data, op_data = await asyncio.gather(
-            asyncio.to_thread(self._scan_urls_vt, urls),
+        gsb_data, op_data = await asyncio.gather(
             gsb_service.check_urls(urls),
             asyncio.to_thread(openphish.check_urls, urls),
         )
@@ -265,105 +252,24 @@ class URLScanner:
         gsb_flagged_set = set(gsb_data.get("flagged_urls", []))
         op_flagged_set = set(op_data.get("flagged_urls", []))
 
-        # Build a per-URL result
-        vt_by_url = {d["url"]: d for d in vt_data.get("details", []) if "url" in d}
-
         results: Dict[str, Dict] = {}
         for url in urls:
-            vt = vt_by_url.get(url, {})
-            vt_malicious = vt.get("malicious", 0) > 0
             gsb_hit = url in gsb_flagged_set
             op_hit = url in op_flagged_set
-            is_malicious = vt_malicious or gsb_hit or op_hit
+            is_malicious = gsb_hit or op_hit
 
             risk_score = 100.0 if is_malicious else 0.0
 
             results[url] = {
                 "url": url,
                 "malicious": is_malicious,
-                "suspicious_count": vt.get("suspicious", 0),
+                "suspicious_count": 0,
                 "risk_score": risk_score,
                 "gsb_flagged": gsb_hit,
                 "op_flagged": op_hit,
-                "vt_detail": vt if vt else None,
             }
 
         return results
-
-    def _scan_urls_vt(self, urls: List[str]) -> Dict:
-        if self.api_key == "##":
-            return {
-                "malicious_count": 0,
-                "suspicious_count": 0,
-                "risk_score": 0.0,
-                "details": [{"error": "VirusTotal API key not configured"}],
-            }
-
-        details = []
-        malicious_count = 0
-        suspicious_count = 0
-
-        for url in urls:
-            result = self._scan_single_url(url)
-            details.append(result)
-            malicious_count += result.get("malicious", 0)
-            suspicious_count += result.get("suspicious", 0)
-
-        risk_score = self._calculate_risk_score(malicious_count, suspicious_count, len(urls))
-
-        return {
-            "malicious_count": malicious_count,
-            "suspicious_count": suspicious_count,
-            "risk_score": risk_score,
-            "details": details,
-        }
-
-    def _scan_single_url(self, url: str) -> Dict:
-        try:
-            url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-            headers = {"x-apikey": self.api_key}
-            response = requests.get(
-                f"{self.api_url}/{url_id}",
-                headers=headers,
-                timeout=self.timeout,
-            )
-            if response.status_code == 404:
-                return self._submit_url_for_scan(url)
-            response.raise_for_status()
-            data = response.json()
-            stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
-            return {
-                "url": url,
-                "malicious": stats.get("malicious", 0),
-                "suspicious": stats.get("suspicious", 0),
-                "harmless": stats.get("harmless", 0),
-                "undetected": stats.get("undetected", 0),
-            }
-        except requests.exceptions.RequestException as e:
-            return {"url": url, "error": str(e), "malicious": 0, "suspicious": 0}
-
-    def _submit_url_for_scan(self, url: str) -> Dict:
-        try:
-            headers = {"x-apikey": self.api_key}
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                data={"url": url},
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            return {"url": url, "status": "submitted_for_analysis", "malicious": 0, "suspicious": 0}
-        except requests.exceptions.RequestException as e:
-            return {"url": url, "error": str(e), "malicious": 0, "suspicious": 0}
-
-    def _calculate_risk_score(self, malicious: int, suspicious: int, total: int) -> float:
-        if total == 0:
-            return 0.0
-        if malicious > 0:
-            return 100.0
-        if suspicious > 0:
-            return min(60.0 + (suspicious / total) * 30.0, 100.0)
-        return 0.0
 
 
 # Singleton instance

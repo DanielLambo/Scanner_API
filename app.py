@@ -93,11 +93,11 @@ async def complete_scan(
     db=Depends(get_db),
 ):
     """
-    Complete email scan using all three methods:
-    - Email address verification (Hunter.io)
-    - URL scanning (VirusTotal)
+    Complete email scan using all methods:
+    - Email address verification (domain age + homoglyph detection)
+    - URL scanning (Google Safe Browsing, OpenPhish, url_signals)
     - Content analysis (ML model)
-    
+
     Returns comprehensive scam score and risk assessment
     """
     email_result = None
@@ -198,14 +198,14 @@ async def scan_email_address(
 ):
     """
     Email address verification only
-    Uses Hunter.io API to validate email and check reputation
+    Uses domain age and homoglyph detection to assess sender risk
     """
     if not request.email_address:
         raise HTTPException(
             status_code=400,
             detail="email_address is required for this endpoint"
         )
-    
+
     return await email_verifier.verify_email(request.email_address)
 
 
@@ -216,7 +216,7 @@ async def scan_urls(
 ):
     """
     URL scanning only
-    Uses VirusTotal API to detect malicious links in email text
+    Uses Google Safe Browsing, OpenPhish, and url_signals to detect malicious links
     """
     if not request.email_text:
         raise HTTPException(

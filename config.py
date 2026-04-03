@@ -13,23 +13,12 @@ class Settings(BaseSettings):
     testing_mode: bool = True  # Set to False in production
 
     # API Keys
-    hunter_api_key: str = "##"
-    virustotal_api_key: str = "##"
     api_key: str = "##"
     google_safe_browsing_key: str = "##"
-
-    # Scoring weights (should sum to 1.0)
-    scoring_weights_email: float = 0.3
-    scoring_weights_url: float = 0.4
-    scoring_weights_content: float = 0.3
 
     # API Configuration
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-
-    # Service Endpoints
-    hunter_api_url: str = "https://api.hunter.io/v2/email-verifier"
-    virustotal_api_url: str = "https://www.virustotal.com/api/v3/urls"
 
     # Timeouts (seconds)
     external_api_timeout: int = 30
