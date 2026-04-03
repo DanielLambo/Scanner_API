@@ -1,5 +1,5 @@
 """
-Content analysis service using Sentence-BERT + calibrated ensemble.
+Content analysis service using TF-IDF + calibrated ensemble.
 Classifies email content as phishing or safe.
 Includes evasion detection (base64, CSS-hidden text, HTML comment injection).
 """
@@ -184,7 +184,7 @@ def preprocess_text(text: str) -> Tuple[str, List[str]]:
 
 
 class ContentAnalyzer:
-    """Sentence-BERT + LR/XGB/LGBM ensemble phishing classifier."""
+    """TF-IDF + LR/XGB/LGBM ensemble phishing classifier."""
 
     def __init__(self):
         self._shap_explainer = None
@@ -192,7 +192,7 @@ class ContentAnalyzer:
 
     def _load_model(self):
         model_loader.load_model(
-            encoder_name_path=settings.encoder_name_path,
+            vectorizer_path=settings.vectorizer_path,
             clf_lr_path=settings.classifier_lr_path,
             clf_xgb_path=settings.classifier_xgb_path,
             clf_lgbm_path=settings.classifier_lgbm_path,

@@ -2,7 +2,7 @@
 Download trained model files from HuggingFace Hub if not present locally.
 Called during app startup so Render deployments get models automatically.
 
-By default only downloads encoder_name.txt + classifier_lr.pkl (low memory).
+By default only downloads vectorizer.pkl + classifier_lr.pkl (low memory).
 Set FULL_ENSEMBLE=true to download all 5 files.
 """
 import os
@@ -13,7 +13,7 @@ HF_REPO = "daniellambo7/scanner-api-models"
 MODEL_DIR = "ml/models"
 
 CORE_FILES = [
-    "encoder_name.txt",
+    "vectorizer.pkl",
     "classifier_lr.pkl",
 ]
 

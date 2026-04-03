@@ -34,8 +34,8 @@ class Settings(BaseSettings):
     # Timeouts (seconds)
     external_api_timeout: int = 30
 
-    # ML Model paths (ensemble)
-    encoder_name_path: str = "ml/models/encoder_name.txt"
+    # ML Model paths (TF-IDF ensemble — no PyTorch)
+    vectorizer_path: str = "ml/models/vectorizer.pkl"
     classifier_lr_path: str = "ml/models/classifier_lr.pkl"
     classifier_xgb_path: str = "ml/models/classifier_xgb.pkl"
     classifier_lgbm_path: str = "ml/models/classifier_lgbm.pkl"
