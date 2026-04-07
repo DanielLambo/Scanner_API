@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ScannerAPI — Phishing Detection Infrastructure</title>
+<title>PhishNet — Phishing Detection Infrastructure</title>
 <meta name="description" content="NSF-funded phishing detection API from Alabama A&M University's Cybersecurity Lab. Published in Springer. Presented at SAM'25 Las Vegas. 95% F1 score.">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -15,6 +15,15 @@
   --crimson-dark: #a50e28;
   --crimson-tint: #fef2f2;
   --crimson-tint2: #fee2e2;
+  --orange: #c2410c;
+  --orange-bg: #fff7ed;
+  --orange-border: #fed7aa;
+  --yellow: #a16207;
+  --yellow-bg: #fefce8;
+  --yellow-border: #fef08a;
+  --green: #15803d;
+  --green-bg: #f0fdf4;
+  --green-border: #bbf7d0;
   --text-head: #0f0f0f;
   --text-body: #4b5563;
   --text-muted: #9ca3af;
@@ -222,6 +231,7 @@ body {
   transition: background 0.2s, transform 0.15s;
 }
 .btn-primary:hover { background: var(--crimson-dark); border-color: var(--crimson-dark); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn-outline {
   display: inline-flex;
   align-items: center;
@@ -299,12 +309,6 @@ body {
   white-space: pre-wrap;
   word-break: break-all;
 }
-.tw-key { color: #60a5fa; }
-.tw-str { color: #86efac; }
-.tw-num { color: #fb923c; }
-.tw-bool { color: #c084fc; }
-.tw-null { color: #94a3b8; }
-.tw-brace { color: rgba(255,255,255,0.55); }
 #tw-cursor {
   display: inline-block;
   width: 2px;
@@ -418,11 +422,9 @@ body {
   background: var(--bg-alt);
   padding: 96px 24px;
 }
-.demo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
-  align-items: start;
+.demo-layout {
+  max-width: 720px;
+  margin: 0 auto;
 }
 .demo-form-card {
   background: var(--bg-white);
@@ -471,6 +473,11 @@ body {
 .form-group textarea:focus {
   border-color: var(--crimson);
 }
+.form-group .form-helper {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
 .headers-toggle {
   display: flex;
   align-items: center;
@@ -488,12 +495,20 @@ body {
 .headers-toggle.open svg { transform: rotate(180deg); }
 #headers-area { display: none; }
 #headers-area.open { display: block; }
+
+/* ── RESULT CARD ─────────────────────────────────── */
 .demo-result-card {
   background: var(--bg-white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 32px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow);
+  margin-top: 24px;
+  animation: resultSlideIn 0.4s ease;
+}
+@keyframes resultSlideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .result-header {
   display: flex;
@@ -507,46 +522,70 @@ body {
   font-weight: 600;
   color: var(--text-head);
 }
-.badge-critical {
-  background: #fef2f2;
-  color: var(--crimson);
-  border: 1px solid var(--crimson-tint2);
+.risk-badge {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 5px 14px;
+  border-radius: 100px;
+  border: 1px solid;
 }
+.risk-badge.critical { background: var(--crimson-tint); color: var(--crimson); border-color: var(--crimson-tint2); }
+.risk-badge.high { background: var(--orange-bg); color: var(--orange); border-color: var(--orange-border); }
+.risk-badge.medium { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow-border); }
+.risk-badge.low { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+
 .gauge-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .gauge-svg-wrap {
   position: relative;
-  width: 160px;
-  height: 90px;
+  width: 200px;
+  height: 110px;
   overflow: visible;
 }
-.gauge-label {
-  text-align: center;
-  margin-top: -8px;
+
+/* ── LABELS ──────────────────────────────────────── */
+.result-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 24px;
 }
-.gauge-score {
-  font-family: var(--font-display);
-  font-size: 42px;
-  color: var(--text-head);
-  line-height: 1;
+.label-chip {
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  opacity: 0;
+  animation: chipIn 0.3s ease forwards;
 }
-.gauge-max {
-  font-size: 15px;
+.label-chip.danger {
+  background: var(--crimson-tint);
+  color: var(--crimson);
+  border: 1px solid var(--crimson-tint2);
+}
+.label-chip.warning {
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1px solid var(--orange-border);
+}
+
+/* ── SIGNAL BARS ─────────────────────────────────── */
+.signal-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
-  font-weight: 400;
+  margin-bottom: 14px;
 }
 .signal-bars {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .signal-bar {
   display: flex;
@@ -554,10 +593,19 @@ body {
   gap: 10px;
   margin-bottom: 10px;
 }
+.signal-bar-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+}
 .signal-bar-name {
   font-size: 12.5px;
   color: var(--text-body);
-  width: 130px;
+  width: 120px;
   flex-shrink: 0;
 }
 .signal-bar-track {
@@ -570,9 +618,11 @@ body {
 .signal-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: var(--crimson);
-  transition: width 1s ease;
+  width: 0;
+  transition: width 1.2s ease;
 }
+.signal-bar-fill.critical { background: var(--crimson); }
+.signal-bar-fill.high { background: #ea580c; }
 .signal-bar-fill.medium { background: #f59e0b; }
 .signal-bar-fill.low { background: #10b981; }
 .signal-bar-score {
@@ -583,24 +633,17 @@ body {
   text-align: right;
   flex-shrink: 0;
 }
-.result-labels {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 20px;
+
+@keyframes chipIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-.label-chip {
-  font-size: 11.5px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--crimson-tint);
-  color: var(--crimson);
-  border: 1px solid var(--crimson-tint2);
-}
+
+/* ── RECOMMENDATIONS ─────────────────────────────── */
 .result-recommendations {
   border-top: 1px solid var(--border);
-  padding-top: 16px;
+  padding-top: 20px;
+  margin-bottom: 20px;
 }
 .result-recommendations h4 {
   font-size: 12px;
@@ -614,10 +657,11 @@ body {
   list-style: none;
 }
 .result-recommendations li {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-body);
   padding: 5px 0 5px 18px;
   position: relative;
+  line-height: 1.55;
 }
 .result-recommendations li::before {
   content: '';
@@ -629,6 +673,61 @@ body {
   border-radius: 50%;
   background: var(--crimson);
 }
+
+/* ── SCAN METADATA ───────────────────────────────── */
+.scan-meta {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.scan-meta-left {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.scan-meta-left .copy-id-btn,
+.scan-meta-left .share-btn {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--crimson);
+  background: var(--crimson-tint);
+  border: 1px solid var(--crimson-tint2);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.scan-meta-left .copy-id-btn:hover,
+.scan-meta-left .share-btn:hover { background: var(--crimson-tint2); }
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.btn-scan-again {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--crimson);
+  background: transparent;
+  border: 1.5px solid var(--crimson);
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+  text-align: center;
+}
+.btn-scan-again:hover { background: var(--crimson-tint); }
 
 /* ── API REFERENCE ───────────────────────────────── */
 #api-reference {
@@ -1055,6 +1154,12 @@ footer {
   margin-top: 12px;
   display: none;
 }
+.form-validation-error {
+  font-size: 12px;
+  color: var(--crimson);
+  margin-top: 4px;
+  display: none;
+}
 .demo-powered-note {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1108,17 +1213,19 @@ footer {
   .hero-headline { font-size: 40px; }
   .research-grid { grid-template-columns: 1fr; }
   .features-grid { grid-template-columns: 1fr; }
-  .demo-grid { grid-template-columns: 1fr; }
   .access-cards { grid-template-columns: 1fr; }
   .anatomy-grid { grid-template-columns: 1fr; }
   .footer-top { flex-direction: column; }
   .footer-bottom { flex-direction: column; text-align: center; }
+  .gauge-svg-wrap { width: 150px; height: 85px; }
+  .signal-bar-name { width: 100px; }
 }
 @media (max-width: 480px) {
   .hero-pills { gap: 6px; }
   .pill { font-size: 11px; }
   .hero-ctas { flex-direction: column; }
   .btn-primary, .btn-outline { justify-content: center; }
+  .scan-meta { flex-direction: column; align-items: flex-start; }
 }
 </style>
 </head>
@@ -1132,18 +1239,18 @@ footer {
         <path d="M14 2L3 7.5V14c0 5.8 4.6 10.7 11 12 6.4-1.3 11-6.2 11-12V7.5L14 2z" fill="#fef2f2" stroke="#c41230" stroke-width="1.5" stroke-linejoin="round"/>
         <path d="M9.5 14l3 3 6-6" stroke="#c41230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="nav-logo-text">ScannerAPI</span>
+      <span class="nav-logo-text">PhishNet</span>
     </a>
     <ul class="nav-links">
       <li><a href="#research">Research</a></li>
       <li><a href="#features">Features</a></li>
+      <li><a href="#demo">Demo</a></li>
       <li><a href="#api-reference">API Reference</a></li>
-      <li><a href="#access">Access</a></li>
       <li><a href="#access" class="btn-nav">Request API Key</a></li>
       <li>
         <div id="api-status-indicator">
           <span class="status-dot gray" id="status-dot"></span>
-          <span id="status-text">Checking…</span>
+          <span id="status-text">Checking...</span>
         </div>
       </li>
     </ul>
@@ -1154,8 +1261,8 @@ footer {
   <div class="mobile-menu" id="mobile-menu">
     <a href="#research">Research</a>
     <a href="#features">Features</a>
+    <a href="#demo">Demo</a>
     <a href="#api-reference">API Reference</a>
-    <a href="#access">Access</a>
     <a href="#access" style="color: var(--crimson); font-weight: 600;">Request API Key</a>
   </div>
 </nav>
@@ -1164,17 +1271,17 @@ footer {
 <section id="hero">
   <div class="hero-left fade-up">
     <div class="hero-pills">
-      <span class="pill">🔬 NSF Funded</span>
-      <span class="pill">🏛 AAMU Cybersecurity Lab</span>
-      <span class="pill">📄 Springer</span>
-      <span class="pill">🎤 SAM'25 Las Vegas</span>
+      <span class="pill">NSF Funded</span>
+      <span class="pill">AAMU Cybersecurity Lab</span>
+      <span class="pill">Springer</span>
+      <span class="pill">SAM'25 Las Vegas</span>
     </div>
     <p class="hero-eyebrow">Peer-Reviewed Phishing Detection Infrastructure</p>
     <h1 class="hero-headline">Stop phishing emails<br><em>before they land.</em></h1>
     <p class="hero-sub">Born from NSF-funded research at Alabama A&M University's Cybersecurity Lab. Published in Springer. Presented at SAM'25 Las Vegas. Now available as a production API.</p>
     <div class="hero-ctas">
-      <a href="#api-reference" class="btn-primary">View API Reference →</a>
-      <a href="#access" class="btn-outline">Request Access</a>
+      <a href="#demo" class="btn-primary">Try Live Demo</a>
+      <a href="#api-reference" class="btn-outline">View API Reference</a>
     </div>
     <div class="hero-trust">
       <span>6 detection layers</span>
@@ -1210,17 +1317,17 @@ footer {
     <h2 class="section-title fade-up">Built on peer-reviewed research</h2>
     <div class="research-grid fade-up">
       <div class="research-card">
-        <span class="research-card-icon">🔬</span>
+        <span class="research-card-icon">&#x1F52C;</span>
         <h3>NSF Funded</h3>
         <p>This infrastructure was developed under a National Science Foundation grant awarded to Alabama A&M University's Cybersecurity Laboratory, supporting rigorous academic research into email-based threat detection at scale.</p>
       </div>
       <div class="research-card">
-        <span class="research-card-icon">📄</span>
+        <span class="research-card-icon">&#x1F4C4;</span>
         <h3>Springer Publication</h3>
         <p>The detection methodology and experimental results were peer-reviewed and published through Springer, one of the world's leading academic publishers, validating our multi-signal classification approach.</p>
       </div>
       <div class="research-card">
-        <span class="research-card-icon">🎤</span>
+        <span class="research-card-icon">&#x1F3A4;</span>
         <h3>SAM'25 Las Vegas</h3>
         <p>Presented at the International Conference on Security & Management (SAM'25) in Las Vegas, where the system was reviewed by security researchers and practitioners from academia and industry worldwide.</p>
       </div>
@@ -1234,95 +1341,62 @@ footer {
   <div class="section-inner">
     <h2 class="section-title fade-up">Every signal, working in parallel</h2>
     <div class="features-grid fade-up">
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M10 6v4l2.5 2.5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/><path d="M10 6v4l2.5 2.5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
         <h3>Google Safe Browsing</h3>
         <p>Real-time lookup against Google's phishing and malware URL database, updated continuously with newly discovered threats.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M3 10a7 7 0 1 1 14 0A7 7 0 0 1 3 10z" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M10 7v6M7 10h6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 10a7 7 0 1 1 14 0A7 7 0 0 1 3 10z" stroke="#c41230" stroke-width="1.5"/><path d="M10 7v6M7 10h6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
         <h3>OpenPhish Feed</h3>
         <p>Community-verified phishing URL intelligence, cross-referenced against our scan requests for immediate threat identification.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <rect x="3" y="5" width="14" height="10" rx="2" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M7 10h6M10 7v6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="3" y="5" width="14" height="10" rx="2" stroke="#c41230" stroke-width="1.5"/><path d="M7 10h6M10 7v6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
         <h3>DNSBL Queries</h3>
         <p>Parallel lookups against Spamhaus, SURBL, and URIBL blocklists to catch known spam infrastructure and malicious domains instantly.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M4 14l4-4 3 3 5-6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="16" cy="6" r="2" fill="#c41230"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 14l4-4 3 3 5-6" stroke="#c41230" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16" cy="6" r="2" fill="#c41230"/></svg>
         </div>
         <h3>ML Classifier</h3>
         <p>TF-IDF ensemble classifier trained on 80,000 emails, achieving 95% F1 score on holdout test sets across multiple phishing categories.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M4 6h12M4 10h8M4 14h5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 6h12M4 10h8M4 14h5" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/></svg>
         </div>
         <h3>Header Analysis</h3>
         <p>Deep inspection of SPF, DKIM, and DMARC authentication results, plus Reply-To spoofing and display name impersonation detection.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M10 3C6.5 3 3 5.5 3 10s3.5 7 7 7 7-2.5 7-7-3.5-7-7-7z" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M13 10l-4 2.5V7.5L13 10z" fill="#c41230"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3C6.5 3 3 5.5 3 10s3.5 7 7 7 7-2.5 7-7-3.5-7-7-7z" stroke="#c41230" stroke-width="1.5"/><path d="M13 10l-4 2.5V7.5L13 10z" fill="#c41230"/></svg>
         </div>
         <h3>URL Intelligence</h3>
         <p>Shannon entropy scoring, homoglyph character substitution detection, redirect chain traversal, and typosquatting pattern matching.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <path d="M6 4h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M8 9l4 2-4 2V9z" fill="#c41230"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M6 4h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#c41230" stroke-width="1.5"/><path d="M8 9l4 2-4 2V9z" fill="#c41230"/></svg>
         </div>
         <h3>Evasion Detection</h3>
         <p>Identifies Base64-encoded payloads, CSS-hidden content, misleading HTML comments, and other obfuscation techniques used to bypass filters.</p>
       </div>
-
       <div class="feature-card">
         <div class="feature-icon">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-            <circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/>
-            <path d="M10 6v1M10 13v1M6 10h1M13 10h1" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/>
-            <circle cx="10" cy="10" r="2" fill="#c41230"/>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#c41230" stroke-width="1.5"/><path d="M10 6v1M10 13v1M6 10h1M13 10h1" stroke="#c41230" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="10" r="2" fill="#c41230"/></svg>
         </div>
         <h3>Domain Age</h3>
         <p>WHOIS-based domain registration age lookup. Domains registered under 30 days are flagged as high risk — a consistent indicator of phishing infrastructure.</p>
       </div>
-
     </div>
   </div>
 </section>
@@ -1331,8 +1405,8 @@ footer {
 <section id="demo">
   <div class="section-inner">
     <h2 class="section-title fade-up">See it in action</h2>
-    <div class="demo-grid fade-up">
-      <div class="demo-form-card">
+    <div class="demo-layout fade-up">
+      <div class="demo-form-card" id="demo-form-card">
         <h3>Scan an email</h3>
         <p class="form-desc">Submit email details to analyze with all detection layers.</p>
         <div class="example-btns">
@@ -1345,94 +1419,69 @@ footer {
         </div>
         <div class="form-group">
           <label for="demo-body">Email Body</label>
-          <textarea id="demo-body" rows="4" placeholder="Verify your PayPal account immediately or it will be suspended..."></textarea>
+          <textarea id="demo-body" rows="4" placeholder="Paste the email body text here..."></textarea>
         </div>
+        <div class="form-validation-error" id="form-validation-error">Please fill in at least the sender address or the email body.</div>
         <button class="headers-toggle" id="headers-toggle">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M3 5l4 4 4-4" stroke="#c41230" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          Add email headers (optional)
+          Advanced: Add email headers
         </button>
         <div id="headers-area">
           <div class="form-group">
             <label for="demo-headers">Raw Headers</label>
             <textarea id="demo-headers" rows="4" placeholder="Authentication-Results: spf=fail; dkim=fail; dmarc=fail&#10;From: PayPal Support &lt;support@paypa1.com&gt;&#10;Reply-To: attacker@gmail.com"></textarea>
+            <p class="form-helper">Paste the Authentication-Results and Received headers from your email client</p>
           </div>
         </div>
         <button class="btn-primary" id="demo-scan-btn" style="width:100%; justify-content:center">
-          <svg id="demo-btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <span id="btn-icon-wrap"><svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/>
             <path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>
-          </svg>
+          </svg></span>
           <span id="demo-btn-label">Analyze Email</span>
         </button>
         <div class="demo-error-msg" id="demo-error-msg"></div>
-        <p class="demo-powered-note">Powered by Scanner API &nbsp;·&nbsp; Hosted on Render free tier — first request may take 30s to wake</p>
+        <p class="demo-powered-note">Powered by PhishNet API &middot; Hosted on Render free tier &mdash; first request may take 30s</p>
       </div>
 
+      <!-- Result card (hidden until scan completes) -->
       <div class="demo-result-card" id="demo-result-card" style="display:none">
         <div class="result-header">
           <h3>Scan Result</h3>
-          <span class="badge-critical" id="result-badge">CRITICAL</span>
+          <span class="risk-badge" id="result-badge">CRITICAL</span>
         </div>
         <div class="gauge-container">
           <div class="gauge-svg-wrap">
-            <svg width="160" height="90" viewBox="0 0 160 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M15 85 A65 65 0 0 1 145 85" stroke="#f3f4f6" stroke-width="12" stroke-linecap="round" fill="none"/>
-              <path id="gauge-arc" d="M15 85 A65 65 0 0 1 145 85" stroke="#c41230" stroke-width="12" stroke-linecap="round" fill="none"
-                stroke-dasharray="204" stroke-dashoffset="35" style="transition:stroke-dashoffset 1.2s ease"/>
-              <text id="gauge-score-text" x="80" y="78" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="34" fill="#0f0f0f">83</text>
-              <text x="80" y="92" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="11" fill="#9ca3af">out of 100</text>
+            <svg id="gauge-svg" width="200" height="110" viewBox="0 0 200 110" fill="none">
+              <path d="M20 100 A80 80 0 0 1 180 100" stroke="#f3f4f6" stroke-width="14" stroke-linecap="round" fill="none"/>
+              <path id="gauge-arc" d="M20 100 A80 80 0 0 1 180 100" stroke="#c41230" stroke-width="14" stroke-linecap="round" fill="none"
+                stroke-dasharray="251" stroke-dashoffset="251"/>
+              <text id="gauge-score-text" x="100" y="90" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="40" fill="#0f0f0f">0</text>
+              <text x="100" y="108" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="12" fill="#9ca3af">out of 100</text>
             </svg>
           </div>
         </div>
+        <div class="result-labels" id="result-labels"></div>
         <div class="signal-bars" id="result-signal-bars">
-          <div class="signal-bar">
-            <span class="signal-bar-name">Content Analysis</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:98.6%"></div></div>
-            <span class="signal-bar-score">98.6</span>
-          </div>
-          <div class="signal-bar">
-            <span class="signal-bar-name">Header Analysis</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:100%"></div></div>
-            <span class="signal-bar-score">100</span>
-          </div>
-          <div class="signal-bar">
-            <span class="signal-bar-name">URL Intelligence</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill" style="width:100%"></div></div>
-            <span class="signal-bar-score">100</span>
-          </div>
-          <div class="signal-bar">
-            <span class="signal-bar-name">Safe Browsing</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill medium" style="width:45%"></div></div>
-            <span class="signal-bar-score">45</span>
-          </div>
-          <div class="signal-bar">
-            <span class="signal-bar-name">DNSBL</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill low" style="width:20%"></div></div>
-            <span class="signal-bar-score">20</span>
-          </div>
-          <div class="signal-bar">
-            <span class="signal-bar-name">Domain Age</span>
-            <div class="signal-bar-track"><div class="signal-bar-fill medium" style="width:60%"></div></div>
-            <span class="signal-bar-score">60</span>
-          </div>
-        </div>
-        <div class="result-labels" id="result-labels">
-          <span class="label-chip">Homoglyph Domain</span>
-          <span class="label-chip">DMARC Fail</span>
-          <span class="label-chip">Phishing Content</span>
-          <span class="label-chip">Reply-To Mismatch</span>
+          <p class="signal-section-title">Detection signals</p>
         </div>
         <div class="result-recommendations">
-          <h4>Recommendations</h4>
-          <ul id="result-recommendations-list">
-            <li>Do not click any links in this email</li>
-            <li>This email failed DMARC authentication — sender domain is spoofed</li>
-            <li>Display name impersonates PayPal but was not sent from their domain</li>
-          </ul>
+          <h4>What to do</h4>
+          <ul id="result-recommendations-list"></ul>
         </div>
-        <div id="result-confidence-note" style="font-size:12.5px;color:var(--text-muted);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:none;"></div>
+        <div class="scan-meta" id="scan-meta">
+          <div class="scan-meta-left">
+            <span id="scan-id-text"></span>
+            <button class="copy-id-btn" id="copy-id-btn">Copy ID</button>
+            <span>&middot;</span>
+            <button class="share-btn" id="share-btn">Share</button>
+          </div>
+        </div>
+        <div class="result-actions">
+          <button class="btn-scan-again" id="btn-scan-again">Scan another email</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1444,7 +1493,7 @@ footer {
     <h2 class="section-title fade-up">Simple, predictable API</h2>
     <div class="api-base-url fade-up">
       <span class="api-base-label">Base URL</span>
-      <span class="api-base-value">https://scanner-api.railway.app</span>
+      <span class="api-base-value">https://scanner-api-st8w.onrender.com</span>
     </div>
     <div class="accordion-list fade-up">
 
@@ -1453,7 +1502,7 @@ footer {
         <button class="accordion-trigger" onclick="toggleAccordion('acc-scan')">
           <span class="method-badge method-post">POST</span>
           <span class="accordion-path">/api/scan</span>
-          <span class="accordion-desc">Complete email scan — all six detection layers</span>
+          <span class="accordion-desc">Complete email scan &mdash; all six detection layers</span>
           <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -1484,26 +1533,15 @@ footer {
   <span class="jk">"scan_id"</span>: <span class="js">"1a49b796-d242-448d-929a-dbec00106dcf"</span>,
   <span class="jk">"scam_score"</span>: <span class="jn">83.38</span>,
   <span class="jk">"risk_level"</span>: <span class="js">"CRITICAL"</span>,
-  <span class="jk">"labels"</span>: [<span class="js">"Homoglyph Domain"</span>, <span class="js">"DMARC Fail"</span>, <span class="js">"Phishing Content"</span>, <span class="js">"Reply-To Mismatch"</span>],
+  <span class="jk">"labels"</span>: [<span class="js">"Homoglyph Domain"</span>, <span class="js">"DMARC Fail"</span>, <span class="js">"Phishing Content"</span>],
   <span class="jk">"recommendations"</span>: [
     <span class="js">"Do not click any links in this email"</span>,
-    <span class="js">"This email failed DMARC authentication — sender domain is spoofed"</span>,
-    <span class="js">"Display name impersonates PayPal but was not sent from their domain"</span>
+    <span class="js">"This email failed DMARC authentication"</span>
   ],
   <span class="jk">"content_analysis"</span>: <span class="jb">{</span>
     <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
     <span class="jk">"confidence"</span>: <span class="jn">0.986</span>,
-    <span class="jk">"risk_score"</span>: <span class="jn">98.6</span>,
     <span class="jk">"is_phishing"</span>: <span class="jb">true</span>
-  <span class="jb">}</span>,
-  <span class="jk">"header_analysis"</span>: <span class="jb">{</span>
-    <span class="jk">"dmarc"</span>: <span class="js">"fail"</span>,
-    <span class="jk">"dmarc_policy"</span>: <span class="js">"reject"</span>,
-    <span class="jk">"reply_to_mismatch"</span>: <span class="jb">true</span>,
-    <span class="jk">"display_name_spoof"</span>: <span class="jb">true</span>,
-    <span class="jk">"spoofed_brand"</span>: <span class="js">"PayPal"</span>,
-    <span class="jk">"risk_score"</span>: <span class="jn">100.0</span>,
-    <span class="jk">"flags"</span>: [<span class="js">"DMARC_FAIL"</span>, <span class="js">"REPLY_TO_MISMATCH"</span>, <span class="js">"DISPLAY_NAME_SPOOF"</span>]
   <span class="jb">}</span>,
   <span class="jk">"email_verification"</span>: <span class="jb">{</span>
     <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,
@@ -1525,7 +1563,7 @@ footer {
                   <span class="code-lang-label">bash</span>
                   <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                 </div>
-                <pre class="code-block">curl -X POST https://scanner-api.railway.app/api/scan \
+                <pre class="code-block">curl -X POST https://scanner-api-st8w.onrender.com/api/scan \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your_api_key_here" \
   -d '{"email_address": "test@example.com", "email_text": "Your message here"}'</pre>
@@ -1539,7 +1577,7 @@ footer {
                 </div>
                 <pre class="code-block">import requests
 response = requests.post(
-    "https://scanner-api.railway.app/api/scan",
+    "https://scanner-api-st8w.onrender.com/api/scan",
     headers={"X-API-Key": "your_api_key_here"},
     json={"email_address": "test@example.com", "email_text": "Your message here"}
 )
@@ -1553,7 +1591,7 @@ print(f"Risk Level: {result['risk_level']}, Score: {result['scam_score']}")</pre
                   <span class="code-lang-label">javascript</span>
                   <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                 </div>
-                <pre class="code-block">const response = await fetch('https://scanner-api.railway.app/api/scan', {
+                <pre class="code-block">const response = await fetch('https://scanner-api-st8w.onrender.com/api/scan', {
   method: 'POST',
   headers: {'Content-Type': 'application/json', 'X-API-Key': 'your_api_key_here'},
   body: JSON.stringify({email_address: 'test@example.com', email_text: 'Your message here'})
@@ -1571,7 +1609,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
         <button class="accordion-trigger" onclick="toggleAccordion('acc-urls')">
           <span class="method-badge method-post">POST</span>
           <span class="accordion-path">/api/scan/urls</span>
-          <span class="accordion-desc">URL-only scan — blocklist and intelligence checks</span>
+          <span class="accordion-desc">URL-only scan &mdash; blocklist and intelligence checks</span>
           <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -1585,30 +1623,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
               </div>
               <pre class="code-block"><span class="jb">{</span>
-  <span class="jk">"urls"</span>: [<span class="js">"https://paypa1.com/verify"</span>, <span class="js">"https://secure-login.bank.xyz"</span>]
-<span class="jb">}</span></pre>
-            </div>
-          </div>
-          <div class="code-section">
-            <p class="code-section-title">Response</p>
-            <div class="code-block-wrap">
-              <div class="code-block-header">
-                <span class="code-lang-label">JSON</span>
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              </div>
-              <pre class="code-block"><span class="jb">{</span>
-  <span class="jk">"scan_id"</span>: <span class="js">"f83a21bc-..."</span>,
-  <span class="jk">"urls_analyzed"</span>: <span class="jn">2</span>,
-  <span class="jk">"results"</span>: [
-    <span class="jb">{</span>
-      <span class="jk">"url"</span>: <span class="js">"https://paypa1.com/verify"</span>,
-      <span class="jk">"risk_score"</span>: <span class="jn">97.5</span>,
-      <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,
-      <span class="jk">"safe_browsing_hit"</span>: <span class="jb">false</span>,
-      <span class="jk">"dnsbl_hit"</span>: <span class="jb">false</span>,
-      <span class="jk">"entropy_score"</span>: <span class="jn">4.2</span>
-    <span class="jb">}</span>
-  ]
+  <span class="jk">"email_text"</span>: <span class="js">"Click here: https://paypa1.com/verify"</span>
 <span class="jb">}</span></pre>
             </div>
           </div>
@@ -1620,7 +1635,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
         <button class="accordion-trigger" onclick="toggleAccordion('acc-content')">
           <span class="method-badge method-post">POST</span>
           <span class="accordion-path">/api/scan/content</span>
-          <span class="accordion-desc">Content classification — ML model inference only</span>
+          <span class="accordion-desc">Content classification &mdash; ML model inference only</span>
           <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -1634,23 +1649,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
               </div>
               <pre class="code-block"><span class="jb">{</span>
-  <span class="jk">"text"</span>: <span class="js">"Urgent: Your account has been compromised. Click here to verify now."</span>
-<span class="jb">}</span></pre>
-            </div>
-          </div>
-          <div class="code-section">
-            <p class="code-section-title">Response</p>
-            <div class="code-block-wrap">
-              <div class="code-block-header">
-                <span class="code-lang-label">JSON</span>
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-              </div>
-              <pre class="code-block"><span class="jb">{</span>
-  <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
-  <span class="jk">"confidence"</span>: <span class="jn">0.941</span>,
-  <span class="jk">"risk_score"</span>: <span class="jn">94.1</span>,
-  <span class="jk">"is_phishing"</span>: <span class="jb">true</span>,
-  <span class="jk">"model_version"</span>: <span class="js">"tfidf-ensemble-v2"</span>
+  <span class="jk">"email_text"</span>: <span class="js">"Urgent: Your account has been compromised. Click here to verify now."</span>
 <span class="jb">}</span></pre>
             </div>
           </div>
@@ -1662,7 +1661,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
         <button class="accordion-trigger" onclick="toggleAccordion('acc-health')">
           <span class="method-badge method-get">GET</span>
           <span class="accordion-path">/health</span>
-          <span class="accordion-desc">Health check — service status and uptime</span>
+          <span class="accordion-desc">Health check &mdash; service status and ML model availability</span>
           <svg class="accordion-chevron" width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M4 7l5 5 5-5" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -1677,14 +1676,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
               </div>
               <pre class="code-block"><span class="jb">{</span>
   <span class="jk">"status"</span>: <span class="js">"healthy"</span>,
-  <span class="jk">"version"</span>: <span class="js">"2.1.0"</span>,
-  <span class="jk">"model_loaded"</span>: <span class="jb">true</span>,
-  <span class="jk">"uptime_seconds"</span>: <span class="jn">86420</span>,
-  <span class="jk">"services"</span>: <span class="jb">{</span>
-    <span class="jk">"ml_classifier"</span>: <span class="js">"online"</span>,
-    <span class="jk">"safe_browsing"</span>: <span class="js">"online"</span>,
-    <span class="jk">"dnsbl"</span>: <span class="js">"online"</span>
-  <span class="jb">}</span>
+  <span class="jk">"ml_model_loaded"</span>: <span class="jb">true</span>
 <span class="jb">}</span></pre>
             </div>
           </div>
@@ -1707,24 +1699,24 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
         <pre class="code-block" style="font-size:12px">{
-  <span class="jk">"scan_id"</span>: <span class="js">"1a49b796-..."</span>,        <span style="color:#4b5563">// ← unique per request</span>
-  <span class="jk">"scam_score"</span>: <span class="jn">83.38</span>,            <span style="color:#4b5563">// ← 0–100 composite</span>
-  <span class="jk">"risk_level"</span>: <span class="js">"CRITICAL"</span>,        <span style="color:#4b5563">// ← SAFE/LOW/MED/HIGH/CRIT</span>
-  <span class="jk">"labels"</span>: [...],               <span style="color:#4b5563">// ← human-readable signals</span>
-  <span class="jk">"recommendations"</span>: [...],      <span style="color:#4b5563">// ← actionable guidance</span>
-  <span class="jk">"content_analysis"</span>: {          <span style="color:#4b5563">// ← ML model output</span>
+  <span class="jk">"scan_id"</span>: <span class="js">"1a49b796-..."</span>,        <span style="color:#4b5563">// unique per request</span>
+  <span class="jk">"scam_score"</span>: <span class="jn">83.38</span>,            <span style="color:#4b5563">// 0-100 composite</span>
+  <span class="jk">"risk_level"</span>: <span class="js">"CRITICAL"</span>,        <span style="color:#4b5563">// LOW/MEDIUM/HIGH/CRITICAL</span>
+  <span class="jk">"labels"</span>: [...],               <span style="color:#4b5563">// human-readable signals</span>
+  <span class="jk">"recommendations"</span>: [...],      <span style="color:#4b5563">// actionable guidance</span>
+  <span class="jk">"content_analysis"</span>: {          <span style="color:#4b5563">// ML model output</span>
     <span class="jk">"prediction"</span>: <span class="js">"Phishing Email"</span>,
-    <span class="jk">"confidence"</span>: <span class="jn">0.986</span>,         <span style="color:#4b5563">// ← 0.0–1.0</span>
+    <span class="jk">"confidence"</span>: <span class="jn">0.986</span>,         <span style="color:#4b5563">// 0.0-1.0</span>
     <span class="jk">"is_phishing"</span>: <span class="jb">true</span>
   },
-  <span class="jk">"header_analysis"</span>: {           <span style="color:#4b5563">// ← SPF/DKIM/DMARC</span>
+  <span class="jk">"header_analysis"</span>: {           <span style="color:#4b5563">// SPF/DKIM/DMARC</span>
     <span class="jk">"dmarc"</span>: <span class="js">"fail"</span>,
-    <span class="jk">"reply_to_mismatch"</span>: <span class="jb">true</span>,    <span style="color:#4b5563">// ← Reply-To ≠ From</span>
-    <span class="jk">"spoofed_brand"</span>: <span class="js">"PayPal"</span>,    <span style="color:#4b5563">// ← detected impersonation</span>
-    <span class="jk">"flags"</span>: [...]               <span style="color:#4b5563">// ← machine-readable flags</span>
+    <span class="jk">"reply_to_mismatch"</span>: <span class="jb">true</span>,
+    <span class="jk">"spoofed_brand"</span>: <span class="js">"PayPal"</span>,
+    <span class="jk">"flags"</span>: [...]
   },
-  <span class="jk">"email_verification"</span>: {        <span style="color:#4b5563">// ← domain checks</span>
-    <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,  <span style="color:#4b5563">// ← paypa1.com ≠ paypal.com</span>
+  <span class="jk">"email_verification"</span>: {        <span style="color:#4b5563">// domain checks</span>
+    <span class="jk">"homoglyph_detected"</span>: <span class="jb">true</span>,  <span style="color:#4b5563">// paypa1 != paypal</span>
     <span class="jk">"risk_score"</span>: <span class="jn">100.0</span>
   }
 }</pre>
@@ -1734,35 +1726,35 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
           <div class="callout-dot"></div>
           <div>
             <h4>Composite Score (scam_score)</h4>
-            <p>A weighted average across all active detection layers, normalized to 0–100. Weights are calibrated on the 80k training corpus to minimize false positives on legitimate transactional emails.</p>
+            <p>A weighted average across all active detection layers, normalized to 0-100. Weights are calibrated on the 80k training corpus to minimize false positives on legitimate transactional emails.</p>
           </div>
         </div>
         <div class="callout-item">
           <div class="callout-dot"></div>
           <div>
             <h4>Risk Level Tiers</h4>
-            <p>SAFE (&lt;20), LOW (20–39), MEDIUM (40–59), HIGH (60–79), CRITICAL (80+). Tier boundaries were set to match industry-standard SOC triage thresholds for email security workflows.</p>
+            <p>LOW (&lt;25), MEDIUM (25-49), HIGH (50-74), CRITICAL (75+). Tier boundaries match industry-standard SOC triage thresholds for email security workflows.</p>
           </div>
         </div>
         <div class="callout-item">
           <div class="callout-dot"></div>
           <div>
             <h4>Machine-Readable Flags</h4>
-            <p>The <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">flags</code> array in each sub-analysis contains uppercase string constants ideal for programmatic routing, SIEM integration, and automated quarantine rules.</p>
+            <p>The <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">flags</code> array in each sub-analysis contains uppercase string constants ideal for programmatic routing and SIEM integration.</p>
           </div>
         </div>
         <div class="callout-item">
           <div class="callout-dot"></div>
           <div>
             <h4>Homoglyph Detection</h4>
-            <p>The email_verification layer compares the sender domain character-by-character against a curated list of major brands, detecting substitutions like <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">1→l</code>, <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">0→o</code>, and Unicode lookalikes.</p>
+            <p>The email_verification layer compares the sender domain character-by-character against a curated list of major brands, detecting substitutions like <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">1-&gt;l</code>, <code style="font-family:var(--font-code);font-size:12px;background:var(--bg-alt);padding:1px 5px;border-radius:4px">0-&gt;o</code>, and Unicode lookalikes.</p>
           </div>
         </div>
         <div class="callout-item">
           <div class="callout-dot"></div>
           <div>
             <h4>Human-Readable Labels</h4>
-            <p>The top-level labels array condenses the most significant findings into short strings suitable for display in email clients, browser extensions, or end-user dashboards without exposing raw internals.</p>
+            <p>The top-level labels array condenses the most significant findings into short strings suitable for display in email clients, browser extensions, or end-user dashboards.</p>
           </div>
         </div>
       </div>
@@ -1777,34 +1769,34 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
     <p class="access-sub">Designed to support researchers, defenders, and builders fighting phishing at every level.</p>
     <div class="access-cards fade-up">
       <div class="access-card">
-        <span class="access-card-icon">🎓</span>
+        <span class="access-card-icon">&#x1F393;</span>
         <h3>Researchers &amp; Students</h3>
         <p>Free tier with generous rate limits for academic use, coursework, and thesis research. No credit card required. Cite us in your paper.</p>
-        <span class="access-card-tier">Free · Academic</span>
+        <span class="access-card-tier">Free &middot; Academic</span>
       </div>
       <div class="access-card">
-        <span class="access-card-icon">🛡️</span>
+        <span class="access-card-icon">&#x1F6E1;&#xFE0F;</span>
         <h3>Security Teams</h3>
         <p>Custom rate limits, production SLA guarantees, and dedicated support for security operations centers and enterprise email security integrations.</p>
-        <span class="access-card-tier">Custom · Production</span>
+        <span class="access-card-tier">Custom &middot; Production</span>
       </div>
       <div class="access-card">
-        <span class="access-card-icon">🌐</span>
+        <span class="access-card-icon">&#x1F310;</span>
         <h3>Open Source Projects</h3>
         <p>Free access for qualifying open source security tools, email clients, and community projects that help protect users from phishing.</p>
-        <span class="access-card-tier">Free · OSS</span>
+        <span class="access-card-tier">Free &middot; OSS</span>
       </div>
     </div>
     <div class="access-cta-wrap fade-up">
-      <a href="mailto:aamu-cybersecurity@example.com" class="btn-white-outline">
+      <a href="mailto:daniel@aamu.edu" class="btn-white-outline">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.4"/>
           <path d="M2 6l7 5 7-5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
-        Contact the Lab for API Access
+        Contact daniel@aamu.edu for API Access
       </a>
     </div>
-    <p class="access-credit">Developed at AAMU Cybersecurity Lab &nbsp;·&nbsp; NSF Funded</p>
+    <p class="access-credit">Developed at AAMU Cybersecurity Lab &middot; NSF Funded</p>
   </div>
 </section>
 
@@ -1818,7 +1810,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
             <path d="M14 2L3 7.5V14c0 5.8 4.6 10.7 11 12 6.4-1.3 11-6.2 11-12V7.5L14 2z" fill="rgba(196,18,48,0.2)" stroke="#c41230" stroke-width="1.5" stroke-linejoin="round"/>
             <path d="M9.5 14l3 3 6-6" stroke="#c41230" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          ScannerAPI
+          PhishNet
         </h2>
         <p>Phishing detection infrastructure built on NSF-funded research from Alabama A&M University's Cybersecurity Laboratory.</p>
       </div>
@@ -1843,22 +1835,21 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
     </div>
     <div class="footer-divider"></div>
     <div class="footer-bottom">
-      <p>NSF Funded &nbsp;·&nbsp; AAMU Cybersecurity Lab &nbsp;·&nbsp; Published in Springer &nbsp;·&nbsp; Presented at SAM'25 Las Vegas</p>
-      <span class="footer-built">Built with FastAPI · Python · Deployed on Railway</span>
+      <p>NSF Funded &middot; AAMU Cybersecurity Lab &middot; Published in Springer &middot; Presented at SAM'25 Las Vegas</p>
+      <span class="footer-built">Built with FastAPI &middot; Python &middot; Deployed on Render</span>
     </div>
   </div>
 </footer>
 
 <script>
+// ── CONFIG ───────────────────────────────────────
+var API_BASE = 'https://scanner-api-st8w.onrender.com';
+
 // ── NAV SHADOW ────────────────────────────────────
 (function() {
   var nav = document.getElementById('nav');
   window.addEventListener('scroll', function() {
-    if (window.scrollY > 10) {
-      nav.classList.add('scrolled');
-    } else {
-      nav.classList.remove('scrolled');
-    }
+    nav.classList.toggle('scrolled', window.scrollY > 10);
   }, { passive: true });
 })();
 
@@ -1866,13 +1857,9 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
 (function() {
   var btn = document.getElementById('hamburger');
   var menu = document.getElementById('mobile-menu');
-  btn.addEventListener('click', function() {
-    menu.classList.toggle('open');
-  });
+  btn.addEventListener('click', function() { menu.classList.toggle('open'); });
   menu.querySelectorAll('a').forEach(function(a) {
-    a.addEventListener('click', function() {
-      menu.classList.remove('open');
-    });
+    a.addEventListener('click', function() { menu.classList.remove('open'); });
   });
 })();
 
@@ -1897,8 +1884,6 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
 // ── TYPEWRITER JSON ───────────────────────────────
 (function() {
   var output = document.getElementById('typewriter-output');
-  var cursor = document.getElementById('tw-cursor');
-
   var jsonTokens = [
     { type: 'brace', text: '{' }, { type: 'plain', text: '\n' },
     { type: 'plain', text: '  ' }, { type: 'key', text: '"scan_id"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"1a49b796-d242-448d-929a-dbec00106dcf"' }, { type: 'plain', text: ',\n' },
@@ -1910,60 +1895,23 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
     { type: 'plain', text: '    ' }, { type: 'key', text: '"confidence"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '0.986' }, { type: 'plain', text: ',\n' },
     { type: 'plain', text: '    ' }, { type: 'key', text: '"is_phishing"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: '\n' },
     { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: ',\n' },
-    { type: 'plain', text: '  ' }, { type: 'key', text: '"header_analysis"' }, { type: 'plain', text: ': {\n' },
-    { type: 'plain', text: '    ' }, { type: 'key', text: '"dmarc"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"fail"' }, { type: 'plain', text: ',\n' },
-    { type: 'plain', text: '    ' }, { type: 'key', text: '"reply_to_mismatch"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: ',\n' },
-    { type: 'plain', text: '    ' }, { type: 'key', text: '"spoofed_brand"' }, { type: 'plain', text: ': ' }, { type: 'str', text: '"PayPal"' }, { type: 'plain', text: ',\n' },
-    { type: 'plain', text: '    ' }, { type: 'key', text: '"risk_score"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '100.0' }, { type: 'plain', text: '\n' },
-    { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: ',\n' },
     { type: 'plain', text: '  ' }, { type: 'key', text: '"email_verification"' }, { type: 'plain', text: ': {\n' },
     { type: 'plain', text: '    ' }, { type: 'key', text: '"homoglyph_detected"' }, { type: 'plain', text: ': ' }, { type: 'bool', text: 'true' }, { type: 'plain', text: ',\n' },
     { type: 'plain', text: '    ' }, { type: 'key', text: '"risk_score"' }, { type: 'plain', text: ': ' }, { type: 'num', text: '100.0' }, { type: 'plain', text: '\n' },
     { type: 'plain', text: '  ' }, { type: 'brace', text: '}' }, { type: 'plain', text: '\n' },
     { type: 'brace', text: '}' }
   ];
-
   var colorMap = {
-    key: '#60a5fa',
-    str: '#86efac',
-    num: '#fb923c',
-    bool: '#c084fc',
-    null: '#94a3b8',
-    brace: 'rgba(255,255,255,0.55)',
-    plain: 'rgba(255,255,255,0.75)'
+    key: '#60a5fa', str: '#86efac', num: '#fb923c',
+    bool: '#c084fc', brace: 'rgba(255,255,255,0.55)', plain: 'rgba(255,255,255,0.75)'
   };
-
-  var fullHTML = '';
-  jsonTokens.forEach(function(token) {
-    var color = colorMap[token.type] || 'rgba(255,255,255,0.75)';
-    var escaped = token.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    if (token.type === 'plain') {
-      fullHTML += escaped.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
-    } else {
-      fullHTML += '<span style="color:' + color + '">' + escaped + '</span>';
-    }
-  });
-
-  // Build a flat list of characters with their associated HTML open/close
-  // Instead, type character by character using the rendered HTML approach:
-  // We'll stream tokens, char by char within each token.
-
-  var tokenIndex = 0;
-  var charIndex = 0;
-  var currentHTML = '';
-  var openSpan = false;
-  var typing = false;
-
+  var tokenIndex = 0, charIndex = 0, currentHTML = '', typing = false;
   function getNextCharHTML() {
     if (tokenIndex >= jsonTokens.length) return null;
     var token = jsonTokens[tokenIndex];
-    var ch = token.text[charIndex];
-    charIndex++;
-    if (charIndex >= token.text.length) {
-      charIndex = 0;
-      tokenIndex++;
-    }
-    var color = colorMap[token.type] || 'rgba(255,255,255,0.75)';
+    var ch = token.text[charIndex++];
+    if (charIndex >= token.text.length) { charIndex = 0; tokenIndex++; }
+    var color = colorMap[token.type];
     if (token.type === 'plain') {
       if (ch === '\n') return '<br>';
       if (ch === ' ') return '&nbsp;';
@@ -1971,87 +1919,46 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
     }
     return '<span style="color:' + color + '">' + (ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch) + '</span>';
   }
-
   function typeNext() {
     if (!typing) return;
     var ch = getNextCharHTML();
-    if (ch === null) {
-      typing = false;
-      setTimeout(resetAndType, 3000);
-      return;
-    }
+    if (ch === null) { typing = false; setTimeout(resetAndType, 3000); return; }
     currentHTML += ch;
     output.innerHTML = currentHTML;
-    var delay = 18 + Math.random() * 14;
-    setTimeout(typeNext, delay);
+    setTimeout(typeNext, 18 + Math.random() * 14);
   }
-
   function resetAndType() {
-    currentHTML = '';
-    tokenIndex = 0;
-    charIndex = 0;
-    output.innerHTML = '';
-    typing = true;
-    typeNext();
+    currentHTML = ''; tokenIndex = 0; charIndex = 0;
+    output.innerHTML = ''; typing = true; typeNext();
   }
-
   resetAndType();
 })();
 
 // ── ACCORDION ─────────────────────────────────────
 function toggleAccordion(id) {
-  var item = document.getElementById(id);
-  var isOpen = item.classList.contains('open');
-  item.classList.toggle('open', !isOpen);
+  document.getElementById(id).classList.toggle('open');
 }
 
 // ── TABS ──────────────────────────────────────────
 function switchTab(groupId, tabName) {
   var group = document.getElementById(groupId);
-  var buttons = group.querySelectorAll('.tab-btn');
-  var panels = group.parentElement.querySelectorAll('.tab-panel');
-
-  buttons.forEach(function(btn) { btn.classList.remove('active'); });
-  panels.forEach(function(panel) { panel.classList.remove('active'); });
-
-  buttons.forEach(function(btn) {
-    if (btn.textContent.toLowerCase().replace(/[^a-z]/g,'') === tabName.replace(/[^a-z]/g,'')) {
-      btn.classList.add('active');
-    }
+  group.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
+  group.parentElement.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  group.querySelectorAll('.tab-btn').forEach(function(btn) {
+    if (btn.textContent.toLowerCase().replace(/[^a-z]/g,'') === tabName.replace(/[^a-z]/g,'')) btn.classList.add('active');
   });
-
-  var targetPanel = document.getElementById(groupId + '-' + tabName);
-  if (targetPanel) targetPanel.classList.add('active');
+  var target = document.getElementById(groupId + '-' + tabName);
+  if (target) target.classList.add('active');
 }
 
 // ── COPY TO CLIPBOARD ─────────────────────────────
 function copyCode(btn) {
-  var wrap = btn.closest('.code-block-wrap');
-  var pre = wrap.querySelector('pre.code-block');
+  var pre = btn.closest('.code-block-wrap').querySelector('pre.code-block');
   var text = pre ? pre.innerText : '';
   navigator.clipboard.writeText(text).then(function() {
-    btn.textContent = 'Copied!';
-    btn.classList.add('copied');
-    setTimeout(function() {
-      btn.textContent = 'Copy';
-      btn.classList.remove('copied');
-    }, 2000);
-  }).catch(function() {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    document.body.removeChild(ta);
-    btn.textContent = 'Copied!';
-    btn.classList.add('copied');
-    setTimeout(function() {
-      btn.textContent = 'Copy';
-      btn.classList.remove('copied');
-    }, 2000);
-  });
+    btn.textContent = 'Copied!'; btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {});
 }
 
 // ── HEADERS TOGGLE ────────────────────────────────
@@ -2064,42 +1971,41 @@ function copyCode(btn) {
   });
 })();
 
-// ── HEALTH CHECK ──────────────────────────────────
+// ── HEALTH CHECK (polls every 30s) ────────────────
 (function() {
   var dot = document.getElementById('status-dot');
   var text = document.getElementById('status-text');
-  fetch('https://scanner-api-st8w.onrender.com/health')
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.status === 'healthy' && data.ml_model_loaded === true) {
-        dot.className = 'status-dot green';
-        text.textContent = 'API Online';
-      } else if (data.status === 'healthy') {
-        dot.className = 'status-dot yellow';
-        text.textContent = 'API Online \u00B7 ML loading';
-      } else {
-        // API responded but reports unhealthy — show warming up
-        dot.className = 'status-dot yellow';
-        text.textContent = 'API Warming Up';
-      }
-    })
-    .catch(function() {
-      // CORS error, network error, or timeout — don't block the user
-      // Just show unknown status and let them try the form directly
-      dot.className = 'status-dot gray';
-      text.textContent = 'Status Unknown';
-    });
+  function checkHealth() {
+    fetch(API_BASE + '/health')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'healthy' && data.ml_model_loaded === true) {
+          dot.className = 'status-dot green'; text.textContent = 'API Online';
+        } else if (data.status === 'healthy') {
+          dot.className = 'status-dot yellow'; text.textContent = 'ML Loading';
+        } else {
+          dot.className = 'status-dot yellow'; text.textContent = 'API Warming Up';
+        }
+      })
+      .catch(function() {
+        dot.className = 'status-dot gray'; text.textContent = 'API Warming Up';
+      });
+  }
+  checkHealth();
+  setInterval(checkHealth, 30000);
 })();
 
 // ── EXAMPLE PREFILL ───────────────────────────────
 (function() {
   document.getElementById('btn-phishing-example').addEventListener('click', function() {
     document.getElementById('demo-email').value = 'support@paypa1.com';
-    document.getElementById('demo-body').value = 'Your PayPal account has been compromised. Verify immediately or it will be suspended.';
+    document.getElementById('demo-body').value = 'Your PayPal account has been flagged for suspicious activity. Verify your identity immediately or your account will be suspended within 24 hours.';
+    document.getElementById('form-validation-error').style.display = 'none';
   });
   document.getElementById('btn-safe-example').addEventListener('click', function() {
     document.getElementById('demo-email').value = 'newsletter@github.com';
-    document.getElementById('demo-body').value = 'Your weekly GitHub digest is ready. Check out trending repositories this week.';
+    document.getElementById('demo-body').value = 'Your weekly GitHub digest is ready. Here are the trending repositories this week.';
+    document.getElementById('form-validation-error').style.display = 'none';
   });
 })();
 
@@ -2107,154 +2013,248 @@ function copyCode(btn) {
 (function() {
   var scanBtn = document.getElementById('demo-scan-btn');
   var btnLabel = document.getElementById('demo-btn-label');
-  var btnIcon = document.getElementById('demo-btn-icon');
+  var btnIconWrap = document.getElementById('btn-icon-wrap');
   var errorMsg = document.getElementById('demo-error-msg');
+  var validationError = document.getElementById('form-validation-error');
   var scanning = false;
+  var lastScanData = null;
 
-  function getRiskBadgeStyle(level) {
-    var map = {
-      'CRITICAL': { bg: '#fef2f2', color: '#c41230', border: '#fee2e2' },
-      'HIGH':     { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
-      'MEDIUM':   { bg: '#fefce8', color: '#a16207', border: '#fef08a' },
-      'LOW':      { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0' }
-    };
-    return map[level] || { bg: '#f3f4f6', color: '#6b7280', border: '#e5e7eb' };
+  var svgIcon = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>';
+  var spinnerIcon = '<span class="scan-spinner"></span>';
+
+  function getRiskClass(level) {
+    if (level === 'CRITICAL') return 'critical';
+    if (level === 'HIGH') return 'high';
+    if (level === 'MEDIUM') return 'medium';
+    return 'low';
   }
 
   function getGaugeColor(score) {
     if (score >= 75) return '#c41230';
-    if (score >= 50) return '#c2410c';
+    if (score >= 50) return '#ea580c';
     if (score >= 25) return '#f59e0b';
     return '#10b981';
   }
 
   function getBarClass(score) {
-    if (score >= 70) return '';
-    if (score >= 35) return 'medium';
+    if (score >= 75) return 'critical';
+    if (score >= 50) return 'high';
+    if (score >= 25) return 'medium';
     return 'low';
   }
 
-  function scoreToOffset(score) {
-    return Math.round(204 - (score / 100) * 204);
+  // Danger labels (red chips)
+  var dangerKeywords = ['phishing', 'malicious', 'homoglyph', 'spoof', 'fail', 'blocklist', 'blocked', 'suspicious', 'evasion', 'critical'];
+
+  function isLabelDangerous(label) {
+    var lower = label.toLowerCase();
+    return dangerKeywords.some(function(k) { return lower.indexOf(k) !== -1; });
+  }
+
+  function animateScore(target, duration) {
+    var scoreEl = document.getElementById('gauge-score-text');
+    var arc = document.getElementById('gauge-arc');
+    var arcLen = 251;
+    var start = performance.now();
+    function step(now) {
+      var t = Math.min((now - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      var current = Math.round(eased * target);
+      scoreEl.textContent = current;
+      arc.setAttribute('stroke-dashoffset', Math.round(arcLen - (eased * target / 100) * arcLen));
+      if (t < 1) requestAnimationFrame(step);
+    }
+    arc.setAttribute('stroke', getGaugeColor(target));
+    requestAnimationFrame(step);
   }
 
   function renderResult(data) {
+    lastScanData = data;
     var score = Math.round(data.scam_score || 0);
-    var level = data.risk_level || 'UNKNOWN';
+    var level = data.risk_level || 'LOW';
     var labels = data.labels || [];
     var recs = data.recommendations || [];
     var ca = data.content_analysis || {};
+    var ev = data.email_verification || {};
+    var us = data.url_scan || {};
+    var ha = data.header_analysis || {};
+    var dnsbl = data.dnsbl_result || {};
 
-    // Show result card
-    document.getElementById('demo-result-card').style.display = 'block';
+    var resultCard = document.getElementById('demo-result-card');
+    resultCard.style.display = 'block';
 
-    // Gauge — score + color
-    document.getElementById('gauge-score-text').textContent = score;
-    var arc = document.getElementById('gauge-arc');
-    arc.setAttribute('stroke-dashoffset', scoreToOffset(score));
-    arc.setAttribute('stroke', getGaugeColor(score));
-
-    // Badge — style by risk level
+    // Badge
     var badge = document.getElementById('result-badge');
-    var badgeStyle = getRiskBadgeStyle(level);
     badge.textContent = level;
-    badge.style.background = badgeStyle.bg;
-    badge.style.color = badgeStyle.color;
-    badge.style.borderColor = badgeStyle.border;
+    badge.className = 'risk-badge ' + getRiskClass(level);
 
-    // Signal bars — use actual API response field names
-    var barsHtml = '';
+    // Gauge — reset then animate
+    var arc = document.getElementById('gauge-arc');
+    arc.setAttribute('stroke-dashoffset', '251');
+    document.getElementById('gauge-score-text').textContent = '0';
+    setTimeout(function() { animateScore(score, 1500); }, 100);
+
+    // Labels — animate in one by one
+    var labelsEl = document.getElementById('result-labels');
+    labelsEl.innerHTML = '';
+    labels.forEach(function(l, i) {
+      var chip = document.createElement('span');
+      chip.className = 'label-chip ' + (isLabelDangerous(l) ? 'danger' : 'warning');
+      chip.textContent = l;
+      chip.style.animationDelay = (i * 100) + 'ms';
+      labelsEl.appendChild(chip);
+    });
+
+    // Signal bars — build from actual response
     var signals = [];
-    if (ca.risk_score !== undefined) signals.push({ name: 'Content Analysis', score: ca.risk_score });
-    if (data.email_verification && data.email_verification.risk_score !== undefined) signals.push({ name: 'Email Verification', score: data.email_verification.risk_score });
-    if (data.url_scan && data.url_scan.risk_score !== undefined) signals.push({ name: 'URL Intelligence', score: data.url_scan.risk_score });
-    if (data.header_analysis && data.header_analysis.risk_score !== undefined) signals.push({ name: 'Header Analysis', score: data.header_analysis.risk_score });
-    if (data.dnsbl_result && data.dnsbl_result.risk_score !== undefined) signals.push({ name: 'DNSBL', score: data.dnsbl_result.risk_score });
-    if (data.email_verification && data.email_verification.domain_age_risk !== undefined && data.email_verification.domain_age_risk > 0) signals.push({ name: 'Domain Age', score: data.email_verification.domain_age_risk });
+    if (ca.risk_score !== undefined) signals.push({ icon: '&#x1F9E0;', name: 'Content ML', score: ca.risk_score, detail: Math.round(ca.confidence * 100) + '% ' + (ca.prediction || '') });
+    if (ev.risk_score !== undefined) signals.push({ icon: '&#x2709;', name: 'Email Sender', score: ev.risk_score, detail: ev.homoglyph_detected ? 'Homoglyph detected' : '' });
+    if (us.risk_score !== undefined) signals.push({ icon: '&#x1F517;', name: 'URL Analysis', score: us.risk_score, detail: us.malicious_count ? us.malicious_count + ' malicious' : '' });
+    if (ha.risk_score !== undefined) signals.push({ icon: '&#x1F4E8;', name: 'Headers', score: ha.risk_score, detail: (ha.flags || []).join(', ') });
+    if (dnsbl.risk_score !== undefined && dnsbl.risk_score > 0) signals.push({ icon: '&#x1F6AB;', name: 'DNSBL', score: dnsbl.risk_score, detail: dnsbl.blocklists_hit ? dnsbl.blocklists_hit + ' hits' : '' });
 
+    var barsContainer = document.getElementById('result-signal-bars');
+    var barsHtml = '<p class="signal-section-title">Detection signals</p>';
     if (signals.length > 0) {
       signals.forEach(function(s) {
-        var cls = getBarClass(s.score);
-        barsHtml += '<div class="signal-bar"><span class="signal-bar-name">' + s.name + '</span>' +
-          '<div class="signal-bar-track"><div class="signal-bar-fill ' + cls + '" style="width:' + s.score + '%"></div></div>' +
-          '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span></div>';
+        barsHtml += '<div class="signal-bar">' +
+          '<span class="signal-bar-icon">' + s.icon + '</span>' +
+          '<span class="signal-bar-name">' + s.name + '</span>' +
+          '<div class="signal-bar-track"><div class="signal-bar-fill ' + getBarClass(s.score) + '" data-width="' + s.score + '"></div></div>' +
+          '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span>' +
+          '</div>';
       });
-      document.getElementById('result-signal-bars').innerHTML = barsHtml;
     } else {
-      document.getElementById('result-signal-bars').innerHTML = '<p style="font-size:12.5px;color:var(--text-muted)">No signal data available</p>';
+      barsHtml += '<p style="font-size:12.5px;color:var(--text-muted)">No signal breakdown available</p>';
     }
+    barsContainer.innerHTML = barsHtml;
 
-    // Labels
-    var labelsEl = document.getElementById('result-labels');
-    if (labels.length > 0) {
-      labelsEl.innerHTML = labels.map(function(l) {
-        return '<span class="label-chip">' + l + '</span>';
-      }).join('');
-    } else {
-      labelsEl.innerHTML = '';
-    }
+    // Animate signal bars after a frame
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        barsContainer.querySelectorAll('.signal-bar-fill').forEach(function(bar) {
+          bar.style.width = bar.getAttribute('data-width') + '%';
+        });
+      });
+    });
 
     // Recommendations
     var recsList = document.getElementById('result-recommendations-list');
-    if (recs.length > 0) {
-      recsList.innerHTML = recs.map(function(r) { return '<li>' + r + '</li>'; }).join('');
-    }
+    recsList.innerHTML = recs.map(function(r) { return '<li>' + r + '</li>'; }).join('');
 
-    // Confidence note
-    var confNote = document.getElementById('result-confidence-note');
-    if (ca.confidence !== undefined) {
-      confNote.style.display = 'block';
-      confNote.textContent = 'ML confidence: ' + Math.round(ca.confidence * 100) + '% \u00B7 Prediction: ' + (ca.prediction || (ca.is_phishing ? 'Phishing Email' : 'Safe Email'));
-    } else {
-      confNote.style.display = 'none';
-    }
+    // Scan metadata
+    var scanId = data.scan_id || 'N/A';
+    document.getElementById('scan-id-text').textContent = 'Scan ID: ' + scanId;
+
+    // Smooth scroll to result
+    setTimeout(function() {
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
   }
 
+  // Copy scan ID
+  document.getElementById('copy-id-btn').addEventListener('click', function() {
+    var id = lastScanData ? (lastScanData.scan_id || '') : '';
+    navigator.clipboard.writeText(id).then(function() {
+      document.getElementById('copy-id-btn').textContent = 'Copied!';
+      setTimeout(function() { document.getElementById('copy-id-btn').textContent = 'Copy ID'; }, 2000);
+    }).catch(function() {});
+  });
+
+  // Share button
+  document.getElementById('share-btn').addEventListener('click', function() {
+    if (!lastScanData) return;
+    var d = lastScanData;
+    var summary = 'PhishNet scan: ' + (d.risk_level || 'UNKNOWN') + ' (' + Math.round(d.scam_score || 0) + '/100)';
+    if (d.labels && d.labels.length > 0) summary += ' - ' + d.labels[0];
+    summary += '\nhttps://phishnet.pages.dev';
+    navigator.clipboard.writeText(summary).then(function() {
+      document.getElementById('share-btn').textContent = 'Copied!';
+      setTimeout(function() { document.getElementById('share-btn').textContent = 'Share'; }, 2000);
+    }).catch(function() {});
+  });
+
+  // Scan another
+  document.getElementById('btn-scan-again').addEventListener('click', function() {
+    document.getElementById('demo-result-card').style.display = 'none';
+    document.getElementById('demo-email').value = '';
+    document.getElementById('demo-body').value = '';
+    document.getElementById('demo-headers').value = '';
+    errorMsg.style.display = 'none';
+    validationError.style.display = 'none';
+    document.getElementById('demo-form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // Main scan handler
   scanBtn.addEventListener('click', function() {
     if (scanning) return;
     var emailAddr = document.getElementById('demo-email').value.trim();
     var emailText = document.getElementById('demo-body').value.trim();
     var emailHeaders = document.getElementById('demo-headers').value.trim();
-    if (!emailAddr && !emailText) return;
+
+    // Validation
+    if (!emailAddr && !emailText) {
+      validationError.style.display = 'block';
+      return;
+    }
+    validationError.style.display = 'none';
 
     scanning = true;
     errorMsg.style.display = 'none';
-    btnIcon.outerHTML = '<span class="scan-spinner" id="demo-btn-icon"></span>';
-    btnLabel.textContent = 'Scanning…';
+    document.getElementById('demo-result-card').style.display = 'none';
+    btnIconWrap.innerHTML = spinnerIcon;
+    btnLabel.textContent = 'Scanning... (first request may take 30s to wake the API)';
     scanBtn.disabled = true;
 
-    var body = { email_address: emailAddr, email_text: emailText };
+    var body = {};
+    if (emailAddr) body.email_address = emailAddr;
+    if (emailText) body.email_text = emailText;
     if (emailHeaders) body.email_headers = emailHeaders;
 
-    fetch('https://scanner-api-st8w.onrender.com/api/scan', {
+    // AbortController for 60s timeout
+    var controller = new AbortController();
+    var timeoutId = setTimeout(function() { controller.abort(); }, 60000);
+
+    fetch(API_BASE + '/api/scan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-API-Key': 'phishingisevil'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: controller.signal
     })
     .then(function(r) {
-      if (!r.ok) return r.text().then(function(t) { throw new Error('HTTP ' + r.status + ': ' + t); });
+      clearTimeout(timeoutId);
+      if (r.status === 429) {
+        throw { custom: 'Rate limit reached. Please wait 60 seconds.' };
+      }
+      if (r.status === 403) {
+        throw { custom: 'Invalid API key.' };
+      }
+      if (!r.ok) {
+        throw { custom: 'Scan failed. Please try again.' };
+      }
       return r.json();
     })
     .then(function(data) {
       renderResult(data);
     })
     .catch(function(err) {
-      var msg = err && err.message && err.message.indexOf('HTTP') === 0
-        ? 'Scan failed: ' + err.message
-        : 'Scanner is warming up — Render free tier sleeps after inactivity. Try again in 30 seconds.';
+      var msg;
+      if (err && err.custom) {
+        msg = err.custom;
+      } else if (err && err.name === 'AbortError') {
+        msg = 'API is warming up. Please try again in 30 seconds.';
+      } else {
+        msg = 'Scan failed. Please try again.';
+      }
       errorMsg.textContent = msg;
       errorMsg.style.display = 'block';
-      console.error('Scan error:', err);
     })
     .finally(function() {
       scanning = false;
-      var spinner = document.getElementById('demo-btn-icon');
-      if (spinner) {
-        spinner.outerHTML = '<svg id="demo-btn-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>';
-      }
+      btnIconWrap.innerHTML = svgIcon;
       btnLabel.textContent = 'Analyze Email';
       scanBtn.disabled = false;
     });

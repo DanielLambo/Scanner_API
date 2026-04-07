@@ -18,8 +18,13 @@ BLOCKLISTS: dict[str, str] = {
 }
 
 SAFE_DOMAINS = {
-    "gmail.com", "yahoo.com", "outlook.com",
-    "google.com", "microsoft.com", "apple.com",
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "aol.com",
+    "google.com", "microsoft.com", "apple.com", "amazon.com",
+    "github.com", "gitlab.com", "stackoverflow.com",
+    "linkedin.com", "twitter.com", "facebook.com", "instagram.com",
+    "youtube.com", "netflix.com", "dropbox.com",
+    "slack.com", "zoom.us", "notion.so", "figma.com",
+    "vercel.com", "netlify.com", "cloudflare.com", "render.com",
 }
 
 _TIMEOUT = 2.0  # seconds per DNS query
