@@ -1,10 +1,10 @@
 """
-API key authentication middleware
+API key authentication middleware — DB-backed multi-key validation
 """
-from fastapi import HTTPException, Security
+from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
-from config import settings
-import secrets
+from db.database import SessionLocal
+from db.crud import validate_api_key
 
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
@@ -12,37 +12,23 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
     """
-    Verify API key from request header
-    
-    Args:
-        api_key: API key from X-API-Key header
-        
-    Returns:
-        API key if valid
-        
-    Raises:
-        HTTPException: If API key is invalid or missing (unless in testing mode)
+    Verify API key against the database.
+    Returns the key string on success.
+    Raises 401 if missing, 403 if invalid/inactive.
     """
-    # Skip authentication in testing mode
-    if settings.testing_mode:
-        return "testing"
-    
     if not api_key:
         raise HTTPException(
             status_code=401,
             detail="Missing API key. Provide X-API-Key header."
         )
-    
-    # Skip validation if using default placeholder
-    if settings.api_key == "##":
-        return api_key
-    
-    # Use constant-time comparison to prevent timing attacks
-    if not secrets.compare_digest(api_key, settings.api_key):
+
+    async with SessionLocal() as db:
+        valid = await validate_api_key(db, api_key)
+
+    if not valid:
         raise HTTPException(
             status_code=403,
-            detail="Invalid API key"
+            detail="Invalid or inactive API key"
         )
-    
-    return api_key
 
+    return api_key

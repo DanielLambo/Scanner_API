@@ -2,10 +2,13 @@
 FastAPI Email Scanner Backend API
 Main application with all endpoints
 """
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import Optional
 import asyncio
+import secrets
+import threading
 
 from models.schemas import (
     EmailScanRequest,
@@ -29,8 +32,12 @@ from services.header_analyzer import analyze_headers
 from middleware.auth import verify_api_key
 from config import settings
 from db.database import engine, SessionLocal, Base
-from db.models import Scan, Feedback, ActiveLearningQueue  # noqa: F401 — needed for Base.metadata
-from db.crud import save_scan, save_feedback, add_to_active_learning, get_review_queue, get_feedback_stats
+from db.models import Scan, Feedback, ActiveLearningQueue, APIKey  # noqa: F401 — needed for Base.metadata
+from db.crud import (
+    save_scan, save_feedback, add_to_active_learning, get_review_queue,
+    get_feedback_stats, create_api_key, list_api_keys, revoke_api_key,
+    api_keys_exist,
+)
 
 
 # Initialize FastAPI app
@@ -45,27 +52,48 @@ app = FastAPI(
 # CORS configuration for frontend integration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://phishnet.pages.dev",
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ],
+    allow_origins=["*"],  # Allow landing page and any frontend to call the API
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+def _download_and_load_models():
+    """Download models from HuggingFace and load them (runs in background thread)."""
+    from ml.download_models import download_models_if_missing
+    download_models_if_missing()
+    content_analyzer._load_model()
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize background services on startup."""
-    from ml.download_models import download_models_if_missing
-    download_models_if_missing()
-    # Reload model now that files are present (no-op if already loaded)
-    content_analyzer._load_model()
+    # Start model download in background thread so port binds immediately
+    thread = threading.Thread(target=_download_and_load_models, daemon=True)
+    thread.start()
     await openphish.initialize()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed API keys on first run
+    async with SessionLocal() as db:
+        if not await api_keys_exist(db):
+            master_key = await create_api_key(
+                db,
+                owner_email="daniel@aamu.edu",
+                owner_name="Daniel Lambo",
+                tier="research",
+            )
+            print(f"MASTER API KEY: {master_key}")
+            await create_api_key(
+                db,
+                owner_email="demo@phishnet.dev",
+                owner_name="Demo User",
+                tier="free",
+                key_override="phishingisevil",
+            )
+            print("DEMO  API KEY: phishingisevil")
 
 
 async def get_db():
@@ -344,6 +372,65 @@ async def feedback_stats(db=Depends(get_db)):
     """
     stats = await get_feedback_stats(db)
     return stats
+
+
+# --------------- Admin endpoints ---------------
+
+async def verify_admin_key(x_admin_key: str = Header(None)):
+    """Dependency that validates the X-Admin-Key header."""
+    if not x_admin_key:
+        raise HTTPException(status_code=401, detail="Missing X-Admin-Key header")
+    if not secrets.compare_digest(x_admin_key, settings.admin_key):
+        raise HTTPException(status_code=403, detail="Invalid admin key")
+    return x_admin_key
+
+
+class CreateKeyRequest(BaseModel):
+    owner_email: str
+    owner_name: Optional[str] = None
+    tier: str = "free"
+
+
+class RevokeKeyRequest(BaseModel):
+    key: str
+
+
+@app.post("/admin/keys/create")
+async def admin_create_key(
+    request: CreateKeyRequest,
+    db=Depends(get_db),
+    _admin: str = Depends(verify_admin_key),
+):
+    """Create a new API key (admin only)."""
+    key = await create_api_key(db, request.owner_email, request.owner_name, request.tier)
+    return {
+        "key": key,
+        "owner_email": request.owner_email,
+        "tier": request.tier,
+        "created": True,
+    }
+
+
+@app.get("/admin/keys/list")
+async def admin_list_keys(
+    db=Depends(get_db),
+    _admin: str = Depends(verify_admin_key),
+):
+    """List all API keys with masked values (admin only)."""
+    return await list_api_keys(db)
+
+
+@app.post("/admin/keys/revoke")
+async def admin_revoke_key(
+    request: RevokeKeyRequest,
+    db=Depends(get_db),
+    _admin: str = Depends(verify_admin_key),
+):
+    """Revoke an API key (admin only)."""
+    success = await revoke_api_key(db, request.key)
+    if not success:
+        raise HTTPException(status_code=404, detail="Key not found")
+    return {"success": True}
 
 
 if __name__ == "__main__":

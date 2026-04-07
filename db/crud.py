@@ -3,9 +3,11 @@ CRUD operations for scanner feedback database
 """
 import hashlib
 import json
+import secrets
+from datetime import datetime
 from uuid import uuid4
 from sqlalchemy import select, func
-from db.models import Scan, Feedback, ActiveLearningQueue
+from db.models import Scan, Feedback, ActiveLearningQueue, APIKey
 
 
 async def save_scan(db, response, email_address: str = None) -> str:
@@ -145,3 +147,83 @@ async def get_feedback_stats(db) -> dict:
         "queue_size": queue_size,
         "reviewed_count": reviewed_count,
     }
+
+
+# --------------- API Key CRUD ---------------
+
+async def create_api_key(db, owner_email: str, owner_name: str = None,
+                         tier: str = "free", key_override: str = None) -> str:
+    """Create a new API key. Returns the key string."""
+    key = key_override or ("phishnet_" + secrets.token_hex(24))
+    api_key = APIKey(
+        id=str(uuid4()),
+        key=key,
+        owner_email=owner_email,
+        owner_name=owner_name,
+        tier=tier,
+    )
+    db.add(api_key)
+    await db.commit()
+    return key
+
+
+async def validate_api_key(db, key: str) -> bool:
+    """Validate an API key. Returns True if found and active, updates usage stats."""
+    result = await db.execute(select(APIKey).where(APIKey.key == key))
+    api_key = result.scalar_one_or_none()
+    if api_key is None or not api_key.is_active:
+        return False
+    api_key.last_used_at = datetime.utcnow()
+    api_key.total_requests += 1
+    await db.commit()
+    return True
+
+
+async def get_api_key_stats(db, key: str) -> dict | None:
+    """Return stats for an API key, or None if not found."""
+    result = await db.execute(select(APIKey).where(APIKey.key == key))
+    api_key = result.scalar_one_or_none()
+    if api_key is None:
+        return None
+    return {
+        "owner_email": api_key.owner_email,
+        "tier": api_key.tier,
+        "total_requests": api_key.total_requests,
+        "created_at": api_key.created_at.isoformat() if api_key.created_at else None,
+    }
+
+
+async def list_api_keys(db) -> list:
+    """Return all API keys (key masked to first 12 chars)."""
+    result = await db.execute(select(APIKey).order_by(APIKey.created_at))
+    rows = result.scalars().all()
+    return [
+        {
+            "key_preview": row.key[:12] + "..." if len(row.key) > 12 else row.key,
+            "owner_email": row.owner_email,
+            "owner_name": row.owner_name,
+            "tier": row.tier,
+            "is_active": row.is_active,
+            "total_requests": row.total_requests,
+            "last_used_at": row.last_used_at.isoformat() if row.last_used_at else None,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+        for row in rows
+    ]
+
+
+async def revoke_api_key(db, key: str) -> bool:
+    """Revoke an API key. Returns True if found and deactivated."""
+    result = await db.execute(select(APIKey).where(APIKey.key == key))
+    api_key = result.scalar_one_or_none()
+    if api_key is None:
+        return False
+    api_key.is_active = False
+    await db.commit()
+    return True
+
+
+async def api_keys_exist(db) -> bool:
+    """Check if any API keys exist in the database."""
+    result = await db.execute(select(func.count()).select_from(APIKey))
+    return result.scalar() > 0

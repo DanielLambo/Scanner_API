@@ -9,11 +9,10 @@ from typing import Optional
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
 
-    # Testing mode (set to True to bypass API key authentication)
-    testing_mode: bool = True  # Set to False in production
+    # Admin key for /admin/* endpoints
+    admin_key: str = "##"
 
-    # API Keys
-    api_key: str = "##"
+    # API Keys (external services)
     google_safe_browsing_key: str = "##"
 
     # API Configuration
