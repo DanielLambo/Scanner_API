@@ -2,13 +2,18 @@
 FastAPI Email Scanner Backend API
 Main application with all endpoints
 """
-from fastapi import FastAPI, Depends, Header, HTTPException
+from fastapi import FastAPI, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
 import secrets
 import threading
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from models.schemas import (
     EmailScanRequest,
@@ -40,6 +45,9 @@ from db.crud import (
 )
 
 
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Email Scanner API",
@@ -48,6 +56,20 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate limit exceeded",
+            "message": "10 requests per minute allowed on free tier. Contact daniel@aamu.edu for higher limits.",
+            "retry_after": "60 seconds",
+        },
+    )
 
 # CORS configuration for frontend integration
 app.add_middleware(
@@ -115,8 +137,10 @@ async def health_check():
 
 
 @app.post("/api/scan", response_model=CompleteScanResponse)
+@limiter.limit("10/minute")
 async def complete_scan(
-    request: EmailScanRequest,
+    request: Request,
+    scan_request: EmailScanRequest,
     api_key: str = Depends(verify_api_key),
     db=Depends(get_db),
 ):
@@ -155,46 +179,46 @@ async def complete_scan(
     all_evasion_labels = []
 
     # Run email verification (now async) and URL scan concurrently when both present
-    if request.email_address and request.email_text:
+    if scan_request.email_address and scan_request.email_text:
         tasks = [
-            url_scanner.scan_urls(request.email_text),
-            email_verifier.verify_email(request.email_address),
+            url_scanner.scan_urls(scan_request.email_text),
+            email_verifier.verify_email(scan_request.email_address),
         ]
-        if request.email_headers:
-            tasks.append(_run_header_analysis(request.email_headers))
+        if scan_request.email_headers:
+            tasks.append(_run_header_analysis(scan_request.email_headers))
         gathered = await asyncio.gather(*tasks)
         url_result, email_result = gathered[0], gathered[1]
-        if request.email_headers:
+        if scan_request.email_headers:
             header_result = gathered[2]
-        content_result, content_evasion = content_analyzer.analyze_content(request.email_text)
+        content_result, content_evasion = content_analyzer.analyze_content(scan_request.email_text)
         all_evasion_labels.extend(content_evasion)
-        domains = _domains_for_dnsbl(request.email_address, url_result.urls_found)
+        domains = _domains_for_dnsbl(scan_request.email_address, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
-    elif request.email_address:
+    elif scan_request.email_address:
         tasks = [
-            email_verifier.verify_email(request.email_address),
-            dnsbl_check_domains(_domains_for_dnsbl(request.email_address, None)),
+            email_verifier.verify_email(scan_request.email_address),
+            dnsbl_check_domains(_domains_for_dnsbl(scan_request.email_address, None)),
         ]
-        if request.email_headers:
-            tasks.append(_run_header_analysis(request.email_headers))
+        if scan_request.email_headers:
+            tasks.append(_run_header_analysis(scan_request.email_headers))
         gathered = await asyncio.gather(*tasks)
         email_result, dnsbl_result = gathered[0], gathered[1]
-        if request.email_headers:
+        if scan_request.email_headers:
             header_result = gathered[2]
-    elif request.email_text:
-        tasks = [url_scanner.scan_urls(request.email_text)]
-        if request.email_headers:
-            tasks.append(_run_header_analysis(request.email_headers))
+    elif scan_request.email_text:
+        tasks = [url_scanner.scan_urls(scan_request.email_text)]
+        if scan_request.email_headers:
+            tasks.append(_run_header_analysis(scan_request.email_headers))
         gathered = await asyncio.gather(*tasks)
         url_result = gathered[0]
-        if request.email_headers:
+        if scan_request.email_headers:
             header_result = gathered[1]
-        content_result, content_evasion = content_analyzer.analyze_content(request.email_text)
+        content_result, content_evasion = content_analyzer.analyze_content(scan_request.email_text)
         all_evasion_labels.extend(content_evasion)
         domains = _domains_for_dnsbl(None, url_result.urls_found)
         dnsbl_result = await dnsbl_check_domains(domains)
-    elif request.email_headers:
-        header_result = await _run_header_analysis(request.email_headers)
+    elif scan_request.email_headers:
+        header_result = await _run_header_analysis(scan_request.email_headers)
 
     # Calculate combined score
     response = score_calculator.calculate_score(
@@ -207,7 +231,7 @@ async def complete_scan(
     )
 
     # Persist scan and attach scan_id to response
-    scan_id = await save_scan(db, response, request.email_address)
+    scan_id = await save_scan(db, response, scan_request.email_address)
     response.scan_id = scan_id
 
     # Active learning: queue if low confidence or high disagreement
@@ -220,63 +244,69 @@ async def complete_scan(
 
 
 @app.post("/api/scan/email-address", response_model=EmailVerificationResult)
+@limiter.limit("20/minute")
 async def scan_email_address(
-    request: EmailScanRequest,
+    request: Request,
+    scan_request: EmailScanRequest,
     api_key: str = Depends(verify_api_key)
 ):
     """
     Email address verification only
     Uses domain age and homoglyph detection to assess sender risk
     """
-    if not request.email_address:
+    if not scan_request.email_address:
         raise HTTPException(
             status_code=400,
             detail="email_address is required for this endpoint"
         )
 
-    return await email_verifier.verify_email(request.email_address)
+    return await email_verifier.verify_email(scan_request.email_address)
 
 
 @app.post("/api/scan/urls", response_model=URLScanResult)
+@limiter.limit("20/minute")
 async def scan_urls(
-    request: EmailScanRequest,
+    request: Request,
+    scan_request: EmailScanRequest,
     api_key: str = Depends(verify_api_key)
 ):
     """
     URL scanning only
     Uses Google Safe Browsing, OpenPhish, and url_signals to detect malicious links
     """
-    if not request.email_text:
+    if not scan_request.email_text:
         raise HTTPException(
             status_code=400,
             detail="email_text is required for this endpoint"
         )
-    
-    return await url_scanner.scan_urls(request.email_text)
+
+    return await url_scanner.scan_urls(scan_request.email_text)
 
 
 @app.post("/api/scan/content", response_model=ContentAnalysisResult)
+@limiter.limit("20/minute")
 async def scan_content(
-    request: EmailScanRequest,
+    request: Request,
+    scan_request: EmailScanRequest,
     api_key: str = Depends(verify_api_key)
 ):
     """
     Content analysis only
     Uses ML model to classify email text as phishing or safe
     """
-    if not request.email_text:
+    if not scan_request.email_text:
         raise HTTPException(
             status_code=400,
             detail="email_text is required for this endpoint"
         )
-    
+
     if not content_analyzer.is_model_available():
         raise HTTPException(
             status_code=503,
             detail="ML model not available. Train the model first using ml/train_model.py"
         )
-    
-    result, _evasion = content_analyzer.analyze_content(request.email_text)
+
+    result, _evasion = content_analyzer.analyze_content(scan_request.email_text)
     return result
 
 
