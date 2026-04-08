@@ -1,4 +1,4 @@
-# Scanner API — Phishing Detection Model Card
+# PhishNet API — Phishing Detection Model Card
 
 ## Model Overview
 - Architecture: Sentence-BERT (all-MiniLM-L6-v2) embeddings + calibrated ensemble (Logistic Regression, XGBoost, LightGBM)
@@ -50,7 +50,7 @@ Tested against:
 Developed at Alabama A&M University Cybersecurity Research Lab.
 Supported by NSF funding.
 Findings published in Springer proceedings.
-Presented at DEF CON, Las Vegas.
+Presented at SAM'25 — The 2025 International Conference on Security and Management, Las Vegas.
 
 ## Intended Use
 - Email security scanning APIs

@@ -1,7 +1,7 @@
-# Scanner API
+# PhishNet API
 
 > Phishing detection infrastructure built on peer-reviewed research.
-> NSF Funded · AAMU Cybersecurity Lab · Published in Springer · DEF CON Las Vegas
+> NSF Funded · AAMU Cybersecurity Lab · Published in Springer · SAM'25 Las Vegas
 
 ## Live API
 - Base URL: https://scanner-api-st8w.onrender.com
@@ -63,7 +63,7 @@ TOKENIZERS_PARALLELISM=false python3 ml/train_model.py phishing_train.csv
 
 ## Research
 
-Developed at the Alabama A&M University Cybersecurity Research Lab with NSF support. Detection methodology peer-reviewed and published in Springer conference proceedings. System architecture presented at DEF CON, Las Vegas.
+Developed at the **Alabama A&M University Cybersecurity Research Lab** with **NSF funding**. Detection methodology peer-reviewed and published in Springer conference proceedings. System architecture presented at SAM'25 — The 2025 International Conference on Security and Management, Las Vegas.
 
 See [MODEL_CARD.md](MODEL_CARD.md) for full model documentation.
 

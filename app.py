@@ -50,11 +50,39 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Email Scanner API",
-    description="Backend API for email phishing and scam detection using multiple analysis methods",
+    title="PhishNet API",
+    description="""
+## Phishing Detection Infrastructure
+
+NSF-funded research from **Alabama A&M University Cybersecurity Lab**.
+Published in Springer. Presented at SAM'25 Las Vegas.
+
+### Authentication
+All endpoints require `X-API-Key` header.
+Request access: daniel@aamu.edu
+
+### Detection Layers
+- Google Safe Browsing
+- OpenPhish community feed
+- DNSBL (Spamhaus, SURBL, URIBL)
+- ML Classifier (TF-IDF ensemble, 96% F1)
+- Email header analysis (SPF/DKIM/DMARC)
+- URL structural signals
+- Homoglyph detection
+- Domain age (WHOIS)
+
+### Rate Limits
+- `/api/scan`: 10 requests/minute
+- Other scan endpoints: 20 requests/minute
+""",
     version="1.0.0",
+    contact={
+        "name": "Daniel Lambo — AAMU Cybersecurity Lab",
+        "email": "daniel@aamu.edu",
+    },
+    license_info={"name": "MIT"},
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 app.state.limiter = limiter
@@ -124,11 +152,17 @@ async def get_db():
         yield session
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health", response_model=HealthResponse, responses={
+    200: {"content": {"application/json": {"example": {
+        "status": "healthy",
+        "ml_model_loaded": True,
+    }}}},
+})
 async def health_check():
     """
-    Health check endpoint
-    Returns service status and ML model availability
+    Health check endpoint.
+    Returns service status and ML model availability.
+    No authentication required.
     """
     return HealthResponse(
         status="healthy",
@@ -136,7 +170,26 @@ async def health_check():
     )
 
 
-@app.post("/api/scan", response_model=CompleteScanResponse)
+@app.post("/api/scan", response_model=CompleteScanResponse, responses={
+    200: {"content": {"application/json": {"example": {
+        "scan_id": "1a49b796-d242-448d-929a-dbec00106dcf",
+        "scam_score": 83.38,
+        "risk_level": "CRITICAL",
+        "labels": ["Homoglyph Domain", "Phishing Content", "DMARC Fail"],
+        "recommendations": [
+            "Do not click any links in this email",
+            "This email failed DMARC authentication — sender domain is spoofed",
+        ],
+        "content_analysis": {"prediction": "Phishing Email", "confidence": 0.986, "risk_score": 98.6, "is_phishing": True},
+        "email_verification": {"risk_score": 100.0, "homoglyph_detected": True},
+        "header_analysis": {"dmarc": "fail", "reply_to_mismatch": True, "risk_score": 100.0},
+    }}}},
+    429: {"content": {"application/json": {"example": {
+        "error": "Rate limit exceeded",
+        "message": "10 requests per minute allowed on free tier. Contact daniel@aamu.edu for higher limits.",
+        "retry_after": "60 seconds",
+    }}}},
+})
 @limiter.limit("10/minute")
 async def complete_scan(
     request: Request,
@@ -145,12 +198,10 @@ async def complete_scan(
     db=Depends(get_db),
 ):
     """
-    Complete email scan using all methods:
-    - Email address verification (domain age + homoglyph detection)
-    - URL scanning (Google Safe Browsing, OpenPhish, url_signals)
-    - Content analysis (ML model)
+    Complete email scan using all 8 detection layers concurrently.
+    Returns a composite scam score (0-100), risk level, labels, and recommendations.
 
-    Returns comprehensive scam score and risk assessment
+    **Rate limit:** 10 requests/minute
     """
     email_result = None
     url_result = None
@@ -243,7 +294,15 @@ async def complete_scan(
     return response
 
 
-@app.post("/api/scan/email-address", response_model=EmailVerificationResult)
+@app.post("/api/scan/email-address", response_model=EmailVerificationResult, responses={
+    200: {"content": {"application/json": {"example": {
+        "risk_score": 100.0,
+        "domain_age_days": None,
+        "domain_age_risk": 0.0,
+        "homoglyph_detected": True,
+        "details": {"homoglyph_result": {"is_homoglyph": True, "matched_domain": "paypal.com", "original": "paypa1.com"}},
+    }}}},
+})
 @limiter.limit("20/minute")
 async def scan_email_address(
     request: Request,
@@ -251,8 +310,10 @@ async def scan_email_address(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Email address verification only
-    Uses domain age and homoglyph detection to assess sender risk
+    Email address verification only.
+    Checks domain age (WHOIS) and homoglyph detection against known brands.
+
+    **Rate limit:** 20 requests/minute
     """
     if not scan_request.email_address:
         raise HTTPException(
@@ -263,7 +324,15 @@ async def scan_email_address(
     return await email_verifier.verify_email(scan_request.email_address)
 
 
-@app.post("/api/scan/urls", response_model=URLScanResult)
+@app.post("/api/scan/urls", response_model=URLScanResult, responses={
+    200: {"content": {"application/json": {"example": {
+        "urls_found": ["https://paypa1.com/verify"],
+        "malicious_count": 1,
+        "suspicious_count": 0,
+        "risk_score": 85.0,
+        "gsb_flagged_count": 0,
+    }}}},
+})
 @limiter.limit("20/minute")
 async def scan_urls(
     request: Request,
@@ -271,8 +340,10 @@ async def scan_urls(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    URL scanning only
-    Uses Google Safe Browsing, OpenPhish, and url_signals to detect malicious links
+    URL scanning only.
+    Checks URLs against Google Safe Browsing, OpenPhish, DNSBL, and structural signals.
+
+    **Rate limit:** 20 requests/minute
     """
     if not scan_request.email_text:
         raise HTTPException(
@@ -283,7 +354,16 @@ async def scan_urls(
     return await url_scanner.scan_urls(scan_request.email_text)
 
 
-@app.post("/api/scan/content", response_model=ContentAnalysisResult)
+@app.post("/api/scan/content", response_model=ContentAnalysisResult, responses={
+    200: {"content": {"application/json": {"example": {
+        "prediction": "Phishing Email",
+        "confidence": 0.941,
+        "risk_score": 94.1,
+        "is_phishing": True,
+        "ensemble_disagreement": 0.0,
+        "models_agree": True,
+    }}}},
+})
 @limiter.limit("20/minute")
 async def scan_content(
     request: Request,
@@ -291,8 +371,10 @@ async def scan_content(
     api_key: str = Depends(verify_api_key)
 ):
     """
-    Content analysis only
-    Uses ML model to classify email text as phishing or safe
+    Content analysis only.
+    Classifies email text using TF-IDF ensemble ML model (96% F1 score).
+
+    **Rate limit:** 20 requests/minute
     """
     if not scan_request.email_text:
         raise HTTPException(
