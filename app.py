@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import asyncio
+from contextlib import asynccontextmanager
 import secrets
 import threading
 
@@ -48,8 +49,47 @@ from db.crud import (
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
+
+def _download_and_load_models():
+    """Download models from HuggingFace and load them (runs in background thread)."""
+    from ml.download_models import download_models_if_missing
+    download_models_if_missing()
+    content_analyzer._load_model()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Initialize background services on startup."""
+    thread = threading.Thread(target=_download_and_load_models, daemon=True)
+    thread.start()
+    await openphish.initialize()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Seed API keys on first run
+    async with SessionLocal() as db:
+        if not await api_keys_exist(db):
+            master_key = await create_api_key(
+                db,
+                owner_email="daniel.lambo@bulldogs.aamu.edu",
+                owner_name="Daniel Lambo",
+                tier="research",
+            )
+            print(f"MASTER API KEY: {master_key}")
+            await create_api_key(
+                db,
+                owner_email="demo@phishnet.dev",
+                owner_name="Demo User",
+                tier="free",
+                key_override="phishingisevil",
+            )
+            print("DEMO  API KEY: phishingisevil")
+    yield
+
+
 # Initialize FastAPI app
 app = FastAPI(
+    lifespan=lifespan,
     title="PhishNet API",
     description="""
 ## Phishing Detection Infrastructure
@@ -59,7 +99,7 @@ Published in Springer. Presented at SAM'25 Las Vegas.
 
 ### Authentication
 All endpoints require `X-API-Key` header.
-Request access: daniel@aamu.edu
+Request access: daniel.lambo@bulldogs.aamu.edu
 
 ### Detection Layers
 - Google Safe Browsing
@@ -78,7 +118,7 @@ Request access: daniel@aamu.edu
     version="1.0.0",
     contact={
         "name": "Daniel Lambo — AAMU Cybersecurity Lab",
-        "email": "daniel@aamu.edu",
+        "email": "daniel.lambo@bulldogs.aamu.edu",
     },
     license_info={"name": "MIT"},
     docs_url="/docs",
@@ -94,7 +134,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         status_code=429,
         content={
             "error": "Rate limit exceeded",
-            "message": "10 requests per minute allowed on free tier. Contact daniel@aamu.edu for higher limits.",
+            "message": "10 requests per minute allowed on free tier. Contact daniel.lambo@bulldogs.aamu.edu for higher limits.",
             "retry_after": "60 seconds",
         },
     )
@@ -107,43 +147,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def _download_and_load_models():
-    """Download models from HuggingFace and load them (runs in background thread)."""
-    from ml.download_models import download_models_if_missing
-    download_models_if_missing()
-    content_analyzer._load_model()
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize background services on startup."""
-    # Start model download in background thread so port binds immediately
-    thread = threading.Thread(target=_download_and_load_models, daemon=True)
-    thread.start()
-    await openphish.initialize()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-    # Seed API keys on first run
-    async with SessionLocal() as db:
-        if not await api_keys_exist(db):
-            master_key = await create_api_key(
-                db,
-                owner_email="daniel@aamu.edu",
-                owner_name="Daniel Lambo",
-                tier="research",
-            )
-            print(f"MASTER API KEY: {master_key}")
-            await create_api_key(
-                db,
-                owner_email="demo@phishnet.dev",
-                owner_name="Demo User",
-                tier="free",
-                key_override="phishingisevil",
-            )
-            print("DEMO  API KEY: phishingisevil")
 
 
 async def get_db():

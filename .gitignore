@@ -44,6 +44,12 @@ Thumbs.db
 .coverage
 htmlcov/
 
+# Database
+scanner_feedback.db
+
+# Deploy artifacts
+deploy_new/
+
 # Distribution
 dist/
 build/

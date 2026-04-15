@@ -1246,7 +1246,7 @@ footer {
       <li><a href="#features">Features</a></li>
       <li><a href="#demo">Demo</a></li>
       <li><a href="#api-reference">API Reference</a></li>
-      <li><a href="#access" class="btn-nav">Request API Key</a></li>
+      <li><a href="https://mail.google.com/mail/?view=cm&amp;to=daniel.lambo@bulldogs.aamu.edu&amp;cc=ed.pearson@aamu.edu&amp;su=PhishNet%20API%20Key%20Request&amp;body=Hi%20Daniel%2C%0A%0AI%20would%20like%20to%20request%20API%20access%20to%20PhishNet.%0A%0AName%3A%0AAffiliation%3A%0AUse%20case%3A%0A%0AThank%20you." class="btn-nav" target="_blank" rel="noopener">Request API Key</a></li>
       <li>
         <div id="api-status-indicator">
           <span class="status-dot gray" id="status-dot"></span>
@@ -1263,7 +1263,7 @@ footer {
     <a href="#features">Features</a>
     <a href="#demo">Demo</a>
     <a href="#api-reference">API Reference</a>
-    <a href="#access" style="color: var(--crimson); font-weight: 600;">Request API Key</a>
+    <a href="https://mail.google.com/mail/?view=cm&amp;to=daniel.lambo@bulldogs.aamu.edu&amp;cc=ed.pearson@aamu.edu&amp;su=PhishNet%20API%20Key%20Request&amp;body=Hi%20Daniel%2C%0A%0AI%20would%20like%20to%20request%20API%20access%20to%20PhishNet.%0A%0AName%3A%0AAffiliation%3A%0AUse%20case%3A%0A%0AThank%20you." style="color: var(--crimson); font-weight: 600;" target="_blank" rel="noopener">Request API Key</a>
   </div>
 </nav>
 
@@ -1446,43 +1446,8 @@ footer {
         <p class="demo-powered-note">Powered by PhishNet API &middot; Hosted on Render free tier &mdash; first request may take 30s</p>
       </div>
 
-      <!-- Result card (hidden until scan completes) -->
-      <div class="demo-result-card" id="demo-result-card" style="display:none">
-        <div class="result-header">
-          <h3>Scan Result</h3>
-          <span class="risk-badge" id="result-badge">CRITICAL</span>
-        </div>
-        <div class="gauge-container">
-          <div class="gauge-svg-wrap">
-            <svg id="gauge-svg" width="200" height="110" viewBox="0 0 200 110" fill="none">
-              <path d="M20 100 A80 80 0 0 1 180 100" stroke="#f3f4f6" stroke-width="14" stroke-linecap="round" fill="none"/>
-              <path id="gauge-arc" d="M20 100 A80 80 0 0 1 180 100" stroke="#c41230" stroke-width="14" stroke-linecap="round" fill="none"
-                stroke-dasharray="251" stroke-dashoffset="251"/>
-              <text id="gauge-score-text" x="100" y="90" text-anchor="middle" font-family="'Instrument Serif', serif" font-size="40" fill="#0f0f0f">0</text>
-              <text x="100" y="108" text-anchor="middle" font-family="'DM Sans', sans-serif" font-size="12" fill="#9ca3af">out of 100</text>
-            </svg>
-          </div>
-        </div>
-        <div class="result-labels" id="result-labels"></div>
-        <div class="signal-bars" id="result-signal-bars">
-          <p class="signal-section-title">Detection signals</p>
-        </div>
-        <div class="result-recommendations">
-          <h4>What to do</h4>
-          <ul id="result-recommendations-list"></ul>
-        </div>
-        <div class="scan-meta" id="scan-meta">
-          <div class="scan-meta-left">
-            <span id="scan-id-text"></span>
-            <button class="copy-id-btn" id="copy-id-btn">Copy ID</button>
-            <span>&middot;</span>
-            <button class="share-btn" id="share-btn">Share</button>
-          </div>
-        </div>
-        <div class="result-actions">
-          <button class="btn-scan-again" id="btn-scan-again">Scan another email</button>
-        </div>
-      </div>
+      <!-- Result container — only innerHTML changes, element itself is never replaced -->
+      <div id="result-container"></div>
     </div>
   </div>
 </section>
@@ -1788,12 +1753,12 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
       </div>
     </div>
     <div class="access-cta-wrap fade-up">
-      <a href="mailto:daniel@aamu.edu" class="btn-white-outline">
+      <a href="https://mail.google.com/mail/?view=cm&amp;to=daniel.lambo@bulldogs.aamu.edu&amp;cc=ed.pearson@aamu.edu&amp;su=PhishNet%20API%20Key%20Request&amp;body=Hi%20Daniel%2C%0A%0AI%20would%20like%20to%20request%20API%20access%20to%20PhishNet.%0A%0AName%3A%0AAffiliation%3A%0AUse%20case%3A%0A%0AThank%20you." class="btn-white-outline" target="_blank" rel="noopener">
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="4" width="14" height="10" rx="2" stroke="#fff" stroke-width="1.4"/>
           <path d="M2 6l7 5 7-5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
         </svg>
-        Contact daniel@aamu.edu for API Access
+        Contact
       </a>
     </div>
     <p class="access-credit">Developed at AAMU Cybersecurity Lab &middot; NSF Funded</p>
@@ -1836,7 +1801,7 @@ console.log(`Risk Level: ${result.risk_level}, Score: ${result.scam_score}`);</p
     <div class="footer-divider"></div>
     <div class="footer-bottom">
       <p>NSF Funded &middot; AAMU Cybersecurity Lab &middot; Published in Springer &middot; Presented at SAM'25 Las Vegas</p>
-      <span class="footer-built">Built with FastAPI &middot; Python &middot; Deployed on Render</span>
+      <span class="footer-built">Built with FastAPI &middot; Python</span>
     </div>
   </div>
 </footer>
@@ -2010,256 +1975,289 @@ function copyCode(btn) {
 })();
 
 // ── LIVE DEMO SCAN ────────────────────────────────
-(function() {
-  var scanBtn = document.getElementById('demo-scan-btn');
-  var btnLabel = document.getElementById('demo-btn-label');
-  var btnIconWrap = document.getElementById('btn-icon-wrap');
+var _scanState = { scanning: false, lastData: null };
+
+var SVG_ICON = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>';
+var SPINNER_ICON = '<span class="scan-spinner"></span>';
+var DANGER_KEYWORDS = ['phishing', 'malicious', 'homoglyph', 'spoof', 'fail', 'blocklist', 'blocked', 'suspicious', 'evasion', 'critical'];
+
+function getRiskClass(level) {
+  if (level === 'CRITICAL') return 'critical';
+  if (level === 'HIGH') return 'high';
+  if (level === 'MEDIUM') return 'medium';
+  return 'low';
+}
+
+function getGaugeColor(score) {
+  if (score >= 75) return '#c41230';
+  if (score >= 50) return '#ea580c';
+  if (score >= 25) return '#f59e0b';
+  return '#10b981';
+}
+
+function getBarClass(score) {
+  if (score >= 75) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 25) return 'medium';
+  return 'low';
+}
+
+function isLabelDangerous(label) {
+  var lower = label.toLowerCase();
+  return DANGER_KEYWORDS.some(function(k) { return lower.indexOf(k) !== -1; });
+}
+
+function shouldShowLabel(label, ca) {
+  var lower = label.toLowerCase();
+  var confidence = (ca && ca.confidence) || 0;
+  if (lower === 'phishing content' && confidence < 0.85) return false;
+  if (lower === 'suspicious content' && confidence < 0.70) return false;
+  return true;
+}
+
+function animateScore(target, duration) {
+  var scoreEl = document.getElementById('gauge-score-text');
+  var arc = document.getElementById('gauge-arc');
+  if (!scoreEl || !arc) return;
+  var arcLen = 251;
+  var start = performance.now();
+  function step(now) {
+    var t = Math.min((now - start) / duration, 1);
+    var eased = 1 - Math.pow(1 - t, 3);
+    var current = Math.round(eased * target);
+    scoreEl.textContent = current;
+    arc.setAttribute('stroke-dashoffset', Math.round(arcLen - (eased * target / 100) * arcLen));
+    if (t < 1) requestAnimationFrame(step);
+  }
+  arc.setAttribute('stroke', getGaugeColor(target));
+  requestAnimationFrame(step);
+}
+
+function setButtonLoading(loading) {
+  var btn = document.getElementById('demo-scan-btn');
+  var iconWrap = document.getElementById('btn-icon-wrap');
+  var label = document.getElementById('demo-btn-label');
+  if (!btn || !iconWrap || !label) return;
+  if (loading) {
+    iconWrap.innerHTML = SPINNER_ICON;
+    label.textContent = 'Scanning... (first request may take 30s to wake the API)';
+    btn.disabled = true;
+  } else {
+    iconWrap.innerHTML = SVG_ICON;
+    label.textContent = 'Analyze Email';
+    btn.disabled = false;
+  }
+}
+
+function buildResultHTML(data) {
+  var score = Math.round(data.scam_score || 0);
+  var level = data.risk_level || 'LOW';
+  var labels = data.labels || [];
+  var recs = data.recommendations || [];
+  var ca = data.content_analysis || {};
+  var ev = data.email_verification || {};
+  var us = data.url_scan || {};
+  var ha = data.header_analysis || {};
+  var dnsbl = data.dnsbl_result || {};
+  var riskClass = getRiskClass(level);
+  var gaugeColor = getGaugeColor(score);
+
+  // Filter labels
+  var filteredLabels = labels.filter(function(l) { return shouldShowLabel(l, ca); });
+
+  // Build label chips HTML
+  var labelsHTML = filteredLabels.map(function(l, i) {
+    var cls = isLabelDangerous(l) ? 'danger' : 'warning';
+    return '<span class="label-chip ' + cls + '" style="animation-delay:' + (i * 100) + 'ms">' + l + '</span>';
+  }).join('');
+
+  // Build signal bars
+  var signals = [];
+  if (ca.risk_score !== undefined) signals.push({ icon: '&#x1F9E0;', name: 'Content ML', score: ca.risk_score });
+  if (ev.risk_score !== undefined) signals.push({ icon: '&#x2709;', name: 'Email Sender', score: ev.risk_score });
+  if (us.risk_score !== undefined) signals.push({ icon: '&#x1F517;', name: 'URL Analysis', score: us.risk_score });
+  if (ha.risk_score !== undefined) signals.push({ icon: '&#x1F4E8;', name: 'Headers', score: ha.risk_score });
+  if (dnsbl.risk_score !== undefined && dnsbl.risk_score > 0) signals.push({ icon: '&#x1F6AB;', name: 'DNSBL', score: dnsbl.risk_score });
+
+  var barsHTML = '<p class="signal-section-title">Detection signals</p>';
+  if (signals.length > 0) {
+    signals.forEach(function(s) {
+      barsHTML += '<div class="signal-bar">' +
+        '<span class="signal-bar-icon">' + s.icon + '</span>' +
+        '<span class="signal-bar-name">' + s.name + '</span>' +
+        '<div class="signal-bar-track"><div class="signal-bar-fill ' + getBarClass(s.score) + '" data-width="' + s.score + '"></div></div>' +
+        '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span>' +
+        '</div>';
+    });
+  } else {
+    barsHTML += '<p style="font-size:12.5px;color:var(--text-muted)">No signal breakdown available</p>';
+  }
+
+  // Recommendations
+  var recsHTML = recs.map(function(r) { return '<li>' + r + '</li>'; }).join('');
+
+  var scanId = data.scan_id || 'N/A';
+
+  return '<div class="demo-result-card">' +
+    '<div class="result-header">' +
+      '<h3>Scan Result</h3>' +
+      '<span class="risk-badge ' + riskClass + '">' + level + '</span>' +
+    '</div>' +
+    '<div class="gauge-container"><div class="gauge-svg-wrap">' +
+      '<svg width="200" height="110" viewBox="0 0 200 110" fill="none">' +
+        '<path d="M20 100 A80 80 0 0 1 180 100" stroke="#f3f4f6" stroke-width="14" stroke-linecap="round" fill="none"/>' +
+        '<path id="gauge-arc" d="M20 100 A80 80 0 0 1 180 100" stroke="' + gaugeColor + '" stroke-width="14" stroke-linecap="round" fill="none" stroke-dasharray="251" stroke-dashoffset="251"/>' +
+        '<text id="gauge-score-text" x="100" y="90" text-anchor="middle" font-family="\'Instrument Serif\', serif" font-size="40" fill="#0f0f0f">0</text>' +
+        '<text x="100" y="108" text-anchor="middle" font-family="\'DM Sans\', sans-serif" font-size="12" fill="#9ca3af">out of 100</text>' +
+      '</svg>' +
+    '</div></div>' +
+    '<div class="result-labels">' + labelsHTML + '</div>' +
+    '<div class="signal-bars">' + barsHTML + '</div>' +
+    '<div class="result-recommendations"><h4>What to do</h4><ul>' + recsHTML + '</ul></div>' +
+    '<div class="scan-meta"><div class="scan-meta-left">' +
+      '<span>Scan ID: ' + scanId + '</span>' +
+      '<button class="copy-id-btn" id="copy-id-btn" type="button">Copy ID</button>' +
+      '<span>&middot;</span>' +
+      '<button class="share-btn" id="share-btn" type="button">Share</button>' +
+    '</div></div>' +
+    '<div class="result-actions"><button class="btn-scan-again" id="btn-scan-again" type="button">Scan another email</button></div>' +
+  '</div>';
+}
+
+function renderResult(data) {
+  _scanState.lastData = data;
+  var score = Math.round(data.scam_score || 0);
+  var container = document.getElementById('result-container');
+  container.innerHTML = buildResultHTML(data);
+
+  // Animate gauge after a frame
+  setTimeout(function() { animateScore(score, 1500); }, 100);
+
+  // Animate signal bars after a frame
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      container.querySelectorAll('.signal-bar-fill').forEach(function(bar) {
+        bar.style.width = bar.getAttribute('data-width') + '%';
+      });
+    });
+  });
+
+  // Scroll to result
+  setTimeout(function() {
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 200);
+}
+
+function handleScan() {
+  console.log('scan started');
+  if (_scanState.scanning) return;
+
+  // Fresh references every time
+  var emailAddr = document.getElementById('demo-email').value.trim();
+  var emailText = document.getElementById('demo-body').value.trim();
+  var emailHeaders = document.getElementById('demo-headers').value.trim();
   var errorMsg = document.getElementById('demo-error-msg');
   var validationError = document.getElementById('form-validation-error');
-  var scanning = false;
-  var lastScanData = null;
 
-  var svgIcon = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2z" stroke="#fff" stroke-width="1.3"/><path d="M8 5v3l2 2" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/></svg>';
-  var spinnerIcon = '<span class="scan-spinner"></span>';
-
-  function getRiskClass(level) {
-    if (level === 'CRITICAL') return 'critical';
-    if (level === 'HIGH') return 'high';
-    if (level === 'MEDIUM') return 'medium';
-    return 'low';
+  if (!emailAddr && !emailText) {
+    validationError.style.display = 'block';
+    return;
   }
+  validationError.style.display = 'none';
 
-  function getGaugeColor(score) {
-    if (score >= 75) return '#c41230';
-    if (score >= 50) return '#ea580c';
-    if (score >= 25) return '#f59e0b';
-    return '#10b981';
-  }
+  _scanState.scanning = true;
+  errorMsg.style.display = 'none';
+  document.getElementById('result-container').innerHTML = '';
+  setButtonLoading(true);
 
-  function getBarClass(score) {
-    if (score >= 75) return 'critical';
-    if (score >= 50) return 'high';
-    if (score >= 25) return 'medium';
-    return 'low';
-  }
+  var body = {};
+  if (emailAddr) body.email_address = emailAddr;
+  if (emailText) body.email_text = emailText;
+  if (emailHeaders) body.email_headers = emailHeaders;
 
-  // Danger labels (red chips)
-  var dangerKeywords = ['phishing', 'malicious', 'homoglyph', 'spoof', 'fail', 'blocklist', 'blocked', 'suspicious', 'evasion', 'critical'];
+  var controller = new AbortController();
+  var timeoutId = setTimeout(function() { controller.abort(); }, 60000);
 
-  function isLabelDangerous(label) {
-    var lower = label.toLowerCase();
-    return dangerKeywords.some(function(k) { return lower.indexOf(k) !== -1; });
-  }
-
-  function animateScore(target, duration) {
-    var scoreEl = document.getElementById('gauge-score-text');
-    var arc = document.getElementById('gauge-arc');
-    var arcLen = 251;
-    var start = performance.now();
-    function step(now) {
-      var t = Math.min((now - start) / duration, 1);
-      var eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-      var current = Math.round(eased * target);
-      scoreEl.textContent = current;
-      arc.setAttribute('stroke-dashoffset', Math.round(arcLen - (eased * target / 100) * arcLen));
-      if (t < 1) requestAnimationFrame(step);
-    }
-    arc.setAttribute('stroke', getGaugeColor(target));
-    requestAnimationFrame(step);
-  }
-
-  function renderResult(data) {
-    lastScanData = data;
-    var score = Math.round(data.scam_score || 0);
-    var level = data.risk_level || 'LOW';
-    var labels = data.labels || [];
-    var recs = data.recommendations || [];
-    var ca = data.content_analysis || {};
-    var ev = data.email_verification || {};
-    var us = data.url_scan || {};
-    var ha = data.header_analysis || {};
-    var dnsbl = data.dnsbl_result || {};
-
-    var resultCard = document.getElementById('demo-result-card');
-    resultCard.style.display = 'block';
-
-    // Badge
-    var badge = document.getElementById('result-badge');
-    badge.textContent = level;
-    badge.className = 'risk-badge ' + getRiskClass(level);
-
-    // Gauge — reset then animate
-    var arc = document.getElementById('gauge-arc');
-    arc.setAttribute('stroke-dashoffset', '251');
-    document.getElementById('gauge-score-text').textContent = '0';
-    setTimeout(function() { animateScore(score, 1500); }, 100);
-
-    // Labels — animate in one by one
-    var labelsEl = document.getElementById('result-labels');
-    labelsEl.innerHTML = '';
-    labels.forEach(function(l, i) {
-      var chip = document.createElement('span');
-      chip.className = 'label-chip ' + (isLabelDangerous(l) ? 'danger' : 'warning');
-      chip.textContent = l;
-      chip.style.animationDelay = (i * 100) + 'ms';
-      labelsEl.appendChild(chip);
-    });
-
-    // Signal bars — build from actual response
-    var signals = [];
-    if (ca.risk_score !== undefined) signals.push({ icon: '&#x1F9E0;', name: 'Content ML', score: ca.risk_score, detail: Math.round(ca.confidence * 100) + '% ' + (ca.prediction || '') });
-    if (ev.risk_score !== undefined) signals.push({ icon: '&#x2709;', name: 'Email Sender', score: ev.risk_score, detail: ev.homoglyph_detected ? 'Homoglyph detected' : '' });
-    if (us.risk_score !== undefined) signals.push({ icon: '&#x1F517;', name: 'URL Analysis', score: us.risk_score, detail: us.malicious_count ? us.malicious_count + ' malicious' : '' });
-    if (ha.risk_score !== undefined) signals.push({ icon: '&#x1F4E8;', name: 'Headers', score: ha.risk_score, detail: (ha.flags || []).join(', ') });
-    if (dnsbl.risk_score !== undefined && dnsbl.risk_score > 0) signals.push({ icon: '&#x1F6AB;', name: 'DNSBL', score: dnsbl.risk_score, detail: dnsbl.blocklists_hit ? dnsbl.blocklists_hit + ' hits' : '' });
-
-    var barsContainer = document.getElementById('result-signal-bars');
-    var barsHtml = '<p class="signal-section-title">Detection signals</p>';
-    if (signals.length > 0) {
-      signals.forEach(function(s) {
-        barsHtml += '<div class="signal-bar">' +
-          '<span class="signal-bar-icon">' + s.icon + '</span>' +
-          '<span class="signal-bar-name">' + s.name + '</span>' +
-          '<div class="signal-bar-track"><div class="signal-bar-fill ' + getBarClass(s.score) + '" data-width="' + s.score + '"></div></div>' +
-          '<span class="signal-bar-score">' + (Math.round(s.score * 10) / 10) + '</span>' +
-          '</div>';
-      });
-    } else {
-      barsHtml += '<p style="font-size:12.5px;color:var(--text-muted)">No signal breakdown available</p>';
-    }
-    barsContainer.innerHTML = barsHtml;
-
-    // Animate signal bars after a frame
-    requestAnimationFrame(function() {
-      requestAnimationFrame(function() {
-        barsContainer.querySelectorAll('.signal-bar-fill').forEach(function(bar) {
-          bar.style.width = bar.getAttribute('data-width') + '%';
-        });
-      });
-    });
-
-    // Recommendations
-    var recsList = document.getElementById('result-recommendations-list');
-    recsList.innerHTML = recs.map(function(r) { return '<li>' + r + '</li>'; }).join('');
-
-    // Scan metadata
-    var scanId = data.scan_id || 'N/A';
-    document.getElementById('scan-id-text').textContent = 'Scan ID: ' + scanId;
-
-    // Smooth scroll to result
-    setTimeout(function() {
-      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 200);
-  }
-
-  // Copy scan ID
-  document.getElementById('copy-id-btn').addEventListener('click', function() {
-    var id = lastScanData ? (lastScanData.scan_id || '') : '';
-    navigator.clipboard.writeText(id).then(function() {
-      document.getElementById('copy-id-btn').textContent = 'Copied!';
-      setTimeout(function() { document.getElementById('copy-id-btn').textContent = 'Copy ID'; }, 2000);
-    }).catch(function() {});
+  fetch(API_BASE + '/api/scan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': 'phishingisevil' },
+    body: JSON.stringify(body),
+    signal: controller.signal
+  })
+  .then(function(r) {
+    clearTimeout(timeoutId);
+    if (r.status === 429) throw { custom: 'Rate limit reached. Please wait 60 seconds.' };
+    if (r.status === 403) throw { custom: 'Invalid API key.' };
+    if (!r.ok) throw { custom: 'Scan failed. Please try again.' };
+    return r.json();
+  })
+  .then(function(data) { renderResult(data); })
+  .catch(function(err) {
+    var msg;
+    if (err && err.custom) msg = err.custom;
+    else if (err && err.name === 'AbortError') msg = 'API is warming up. Please try again in 30 seconds.';
+    else msg = 'Scan failed. Please try again.';
+    errorMsg.textContent = msg;
+    errorMsg.style.display = 'block';
+  })
+  .finally(function() {
+    _scanState.scanning = false;
+    setButtonLoading(false);
+    initForm();
   });
+}
 
-  // Share button
-  document.getElementById('share-btn').addEventListener('click', function() {
-    if (!lastScanData) return;
-    var d = lastScanData;
-    var summary = 'PhishNet scan: ' + (d.risk_level || 'UNKNOWN') + ' (' + Math.round(d.scam_score || 0) + '/100)';
-    if (d.labels && d.labels.length > 0) summary += ' - ' + d.labels[0];
-    summary += '\nhttps://phishnet.pages.dev';
-    navigator.clipboard.writeText(summary).then(function() {
-      document.getElementById('share-btn').textContent = 'Copied!';
-      setTimeout(function() { document.getElementById('share-btn').textContent = 'Share'; }, 2000);
-    }).catch(function() {});
-  });
+function handleScanAnother() {
+  document.getElementById('result-container').innerHTML = '';
+  document.getElementById('demo-email').value = '';
+  document.getElementById('demo-body').value = '';
+  document.getElementById('demo-headers').value = '';
+  document.getElementById('demo-error-msg').style.display = 'none';
+  document.getElementById('form-validation-error').style.display = 'none';
+  document.getElementById('demo-form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  initForm();
+}
 
-  // Scan another
-  document.getElementById('btn-scan-again').addEventListener('click', function() {
-    document.getElementById('demo-result-card').style.display = 'none';
-    document.getElementById('demo-email').value = '';
-    document.getElementById('demo-body').value = '';
-    document.getElementById('demo-headers').value = '';
-    errorMsg.style.display = 'none';
-    validationError.style.display = 'none';
-    document.getElementById('demo-form-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
-  });
+function handleCopyId() {
+  var id = _scanState.lastData ? (_scanState.lastData.scan_id || '') : '';
+  navigator.clipboard.writeText(id).then(function() {
+    var btn = document.getElementById('copy-id-btn');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(function() { var b = document.getElementById('copy-id-btn'); if (b) b.textContent = 'Copy ID'; }, 2000); }
+  }).catch(function() {});
+}
 
-  // Main scan handler
-  scanBtn.addEventListener('click', function() {
-    if (scanning) return;
-    var emailAddr = document.getElementById('demo-email').value.trim();
-    var emailText = document.getElementById('demo-body').value.trim();
-    var emailHeaders = document.getElementById('demo-headers').value.trim();
+function handleShare() {
+  if (!_scanState.lastData) return;
+  var d = _scanState.lastData;
+  var summary = 'PhishNet scan: ' + (d.risk_level || 'UNKNOWN') + ' (' + Math.round(d.scam_score || 0) + '/100)';
+  if (d.labels && d.labels.length > 0) summary += ' - ' + d.labels[0];
+  summary += '\nhttps://phishnet.pages.dev';
+  navigator.clipboard.writeText(summary).then(function() {
+    var btn = document.getElementById('share-btn');
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(function() { var b = document.getElementById('share-btn'); if (b) b.textContent = 'Share'; }, 2000); }
+  }).catch(function() {});
+}
 
-    // Validation
-    if (!emailAddr && !emailText) {
-      validationError.style.display = 'block';
-      return;
-    }
-    validationError.style.display = 'none';
+function initForm() {
+  // Clone-replace the scan button to remove ALL old listeners
+  var oldBtn = document.getElementById('demo-scan-btn');
+  if (oldBtn) {
+    var newBtn = oldBtn.cloneNode(true);
+    oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+    newBtn.addEventListener('click', handleScan);
+  }
 
-    scanning = true;
-    errorMsg.style.display = 'none';
-    document.getElementById('demo-result-card').style.display = 'none';
-    btnIconWrap.innerHTML = spinnerIcon;
-    btnLabel.textContent = 'Scanning... (first request may take 30s to wake the API)';
-    scanBtn.disabled = true;
+  // Attach listeners on result card buttons (they live inside result-container)
+  var scanAgainBtn = document.getElementById('btn-scan-again');
+  if (scanAgainBtn) scanAgainBtn.addEventListener('click', handleScanAnother);
+  var copyBtn = document.getElementById('copy-id-btn');
+  if (copyBtn) copyBtn.addEventListener('click', handleCopyId);
+  var shareBtn = document.getElementById('share-btn');
+  if (shareBtn) shareBtn.addEventListener('click', handleShare);
+}
 
-    var body = {};
-    if (emailAddr) body.email_address = emailAddr;
-    if (emailText) body.email_text = emailText;
-    if (emailHeaders) body.email_headers = emailHeaders;
-
-    // AbortController for 60s timeout
-    var controller = new AbortController();
-    var timeoutId = setTimeout(function() { controller.abort(); }, 60000);
-
-    fetch(API_BASE + '/api/scan', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': 'phishingisevil'
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal
-    })
-    .then(function(r) {
-      clearTimeout(timeoutId);
-      if (r.status === 429) {
-        throw { custom: 'Rate limit reached. Please wait 60 seconds.' };
-      }
-      if (r.status === 403) {
-        throw { custom: 'Invalid API key.' };
-      }
-      if (!r.ok) {
-        throw { custom: 'Scan failed. Please try again.' };
-      }
-      return r.json();
-    })
-    .then(function(data) {
-      renderResult(data);
-    })
-    .catch(function(err) {
-      var msg;
-      if (err && err.custom) {
-        msg = err.custom;
-      } else if (err && err.name === 'AbortError') {
-        msg = 'API is warming up. Please try again in 30 seconds.';
-      } else {
-        msg = 'Scan failed. Please try again.';
-      }
-      errorMsg.textContent = msg;
-      errorMsg.style.display = 'block';
-    })
-    .finally(function() {
-      scanning = false;
-      btnIconWrap.innerHTML = svgIcon;
-      btnLabel.textContent = 'Analyze Email';
-      scanBtn.disabled = false;
-    });
-  });
-})();
+// Initialize on DOM ready
+initForm();
 </script>
 
 </body>
