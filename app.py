@@ -9,6 +9,9 @@ from pydantic import BaseModel
 from typing import Optional
 import asyncio
 from contextlib import asynccontextmanager
+import json
+import logging
+import os
 import secrets
 import threading
 
@@ -46,8 +49,22 @@ from db.crud import (
 )
 
 
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
+logger = logging.getLogger("phishnet")
+
+
+def _rate_limit_key(request: Request) -> str:
+    """
+    Use X-API-Key for rate limiting when present, otherwise fall back to client IP.
+    This way, two researchers behind the same NAT don't share a rate-limit budget.
+    """
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        return f"key:{api_key.strip()}"
+    return f"ip:{get_remote_address(request)}"
+
+
+# Rate limiter — per-API-key (falls back to IP if no key)
+limiter = Limiter(key_func=_rate_limit_key)
 
 
 def _download_and_load_models():
@@ -55,6 +72,45 @@ def _download_and_load_models():
     from ml.download_models import download_models_if_missing
     download_models_if_missing()
     content_analyzer._load_model()
+
+
+async def _bootstrap_keys_from_env(db) -> None:
+    """
+    Ensure keys defined in BOOTSTRAP_API_KEYS env var exist in the DB.
+    Format: JSON list of {"key": "...", "owner_email": "...", "tier": "...", "owner_name": "..."}
+    Idempotent — safe to run on every startup.
+    """
+    raw = os.environ.get("BOOTSTRAP_API_KEYS")
+    if not raw:
+        return
+    try:
+        keys_to_seed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        logger.error("BOOTSTRAP_API_KEYS is not valid JSON: %s", exc)
+        return
+    if not isinstance(keys_to_seed, list):
+        logger.error("BOOTSTRAP_API_KEYS must be a JSON list")
+        return
+
+    from sqlalchemy import select
+    seeded = 0
+    for entry in keys_to_seed:
+        if not isinstance(entry, dict) or not entry.get("key"):
+            continue
+        key_value = entry["key"]
+        result = await db.execute(select(APIKey).where(APIKey.key == key_value))
+        if result.scalar_one_or_none() is None:
+            await create_api_key(
+                db,
+                owner_email=entry.get("owner_email", "unknown@phishnet.dev"),
+                owner_name=entry.get("owner_name"),
+                tier=entry.get("tier", "free"),
+                key_override=key_value,
+            )
+            seeded += 1
+    if seeded:
+        logger.info("Bootstrapped %d API keys from env", seeded)
+        print(f"Bootstrapped {seeded} API key(s) from BOOTSTRAP_API_KEYS")
 
 
 @asynccontextmanager
@@ -66,7 +122,7 @@ async def lifespan(app):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Seed API keys on first run
+    # Seed default keys on first run, then top up from env (idempotent)
     async with SessionLocal() as db:
         if not await api_keys_exist(db):
             master_key = await create_api_key(
@@ -84,6 +140,7 @@ async def lifespan(app):
                 key_override="phishingisevil",
             )
             print("DEMO  API KEY: phishingisevil")
+        await _bootstrap_keys_from_env(db)
     yield
 
 
@@ -138,6 +195,23 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
             "retry_after": "60 seconds",
         },
     )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all so a bad input or transient downstream error returns a clean 500
+    instead of crashing the worker."""
+    # FastAPI handles HTTPException and validation errors before reaching here.
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": "An unexpected error occurred while processing your request.",
+            "path": request.url.path,
+        },
+    )
+
 
 # CORS configuration for frontend integration
 app.add_middleware(
@@ -511,23 +585,27 @@ class RevokeKeyRequest(BaseModel):
 
 
 @app.post("/admin/keys/create")
+@limiter.limit("30/minute")
 async def admin_create_key(
-    request: CreateKeyRequest,
+    request: Request,
+    body: CreateKeyRequest,
     db=Depends(get_db),
     _admin: str = Depends(verify_admin_key),
 ):
     """Create a new API key (admin only)."""
-    key = await create_api_key(db, request.owner_email, request.owner_name, request.tier)
+    key = await create_api_key(db, body.owner_email, body.owner_name, body.tier)
     return {
         "key": key,
-        "owner_email": request.owner_email,
-        "tier": request.tier,
+        "owner_email": body.owner_email,
+        "tier": body.tier,
         "created": True,
     }
 
 
 @app.get("/admin/keys/list")
+@limiter.limit("30/minute")
 async def admin_list_keys(
+    request: Request,
     db=Depends(get_db),
     _admin: str = Depends(verify_admin_key),
 ):
@@ -536,13 +614,15 @@ async def admin_list_keys(
 
 
 @app.post("/admin/keys/revoke")
+@limiter.limit("30/minute")
 async def admin_revoke_key(
-    request: RevokeKeyRequest,
+    request: Request,
+    body: RevokeKeyRequest,
     db=Depends(get_db),
     _admin: str = Depends(verify_admin_key),
 ):
     """Revoke an API key (admin only)."""
-    success = await revoke_api_key(db, request.key)
+    success = await revoke_api_key(db, body.key)
     if not success:
         raise HTTPException(status_code=404, detail="Key not found")
     return {"success": True}

@@ -16,6 +16,10 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
     Returns the key string on success.
     Raises 401 if missing, 403 if invalid/inactive.
     """
+    # Strip whitespace — common copy-paste issue with leading/trailing spaces or newlines
+    if api_key:
+        api_key = api_key.strip()
+
     if not api_key:
         raise HTTPException(
             status_code=401,
