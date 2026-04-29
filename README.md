@@ -9,14 +9,35 @@
 
 ## Quick Start
 
+All scan endpoints require an `X-API-Key` header. Request access: daniel.lambo@bulldogs.aamu.edu
+
 ```bash
 curl -X POST https://scanner-api-st8w.onrender.com/api/scan \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
   -d '{
     "email_address": "support@paypa1.com",
     "email_text": "Your PayPal account has been compromised. Verify immediately.",
     "email_headers": "Authentication-Results: spf=fail; dkim=fail; dmarc=fail"
   }'
+```
+
+## Rate Limits
+
+Limits are enforced **per API key** (not per IP), so researchers behind shared networks don't compete.
+
+| Endpoint | Limit |
+|----------|-------|
+| `POST /api/scan` | 10 / minute |
+| `POST /api/scan/urls` | 20 / minute |
+| `POST /api/scan/content` | 20 / minute |
+| `POST /api/scan/email-address` | 20 / minute |
+| `GET /health`, `/docs` | unlimited |
+| `POST /admin/*` | 30 / minute |
+
+A `429` response returns:
+```json
+{"error":"Rate limit exceeded","message":"...","retry_after":"60 seconds"}
 ```
 
 ## Detection Layers
@@ -60,6 +81,26 @@ Train the model:
 ```bash
 TOKENIZERS_PARALLELISM=false python3 ml/train_model.py phishing_train.csv
 ```
+
+## Production Deployment
+
+The API runs on Render. Two environment variables control persistence:
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DATABASE_URL` | Recommended | Postgres connection string. Defaults to local SQLite (wiped on every Render redeploy). Set to a managed Postgres (Neon, Supabase, Render PG) for durable storage. The app auto-converts `postgresql://` to the asyncpg driver and strips `?sslmode`. |
+| `BOOTSTRAP_API_KEYS` | Recommended | JSON array of keys to ensure exist on every startup. Idempotent. Used to restore handed-out keys after a SQLite wipe and to provision research keys without admin calls. |
+| `ADMIN_KEY` | Required for `/admin/*` | Header-validated key for admin endpoints. |
+| `GOOGLE_SAFE_BROWSING_KEY` | Optional | Enables GSB lookups. Without it, that layer no-ops. |
+
+**`BOOTSTRAP_API_KEYS` format:**
+```json
+[
+  {"key":"phishnet_xxx","owner_email":"user@example.com","owner_name":"Name","tier":"research"}
+]
+```
+
+Tiers are advisory metadata; rate limits are enforced uniformly per-key.
 
 ## Research
 
